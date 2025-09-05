@@ -11,7 +11,9 @@ import {
   Link as MuiLink,
   Alert,
   CircularProgress,
-  Divider
+  Divider,
+  Tabs,
+  Tab
 } from '@mui/material';
 import GoogleIcon from '@mui/icons-material/Google';
 
@@ -23,6 +25,7 @@ const Login = ({ setAuth }) => {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [tabValue, setTabValue] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -88,6 +91,14 @@ const Login = ({ setAuth }) => {
       const res = await axios.post('http://localhost:5000/api/auth/login', body, config);
       
       if (res.data.message === 'Login successful') {
+        // Check if user is trying to login through Admin tab but is not an admin
+        if (tabValue === 1 && res.data.user.role !== 'admin') {
+          setError('User not permitted to login in admin page');
+          setLoading(false);
+          return;
+        }
+        
+        // Admin users can login through both tabs, regular users only through User tab
         localStorage.setItem('token', 'dummy-token');
         localStorage.setItem('user', JSON.stringify(res.data.user));
         if (setAuth) setAuth(true);
@@ -105,12 +116,25 @@ const Login = ({ setAuth }) => {
     window.location.href = 'http://localhost:5000/api/auth/google';
   };
 
+  const handleTabChange = (event, newValue) => {
+    setTabValue(newValue);
+    setError('');
+    setSuccessMessage('');
+  };
+
   return (
-    <Container component="main" maxWidth="xs">
+    <Container component="main" maxWidth="sm">
       <Paper elevation={3} sx={{ mt: 8, p: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <Typography component="h1" variant="h5">
-          Sign In
+          Book Library Login
         </Typography>
+        
+        <Box sx={{ width: '100%', mt: 2 }}>
+          <Tabs value={tabValue} onChange={handleTabChange} centered>
+            <Tab label="User Login" />
+            <Tab label="Admin Login" />
+          </Tabs>
+        </Box>
         
         {error && (
           <Alert severity="error" sx={{ width: '100%', mt: 2 }}>
@@ -161,30 +185,34 @@ const Login = ({ setAuth }) => {
             {loading ? <CircularProgress size={24} color="inherit" /> : 'Sign In'}
           </Button>
           
-          <Divider sx={{ width: '100%', my: 2 }}>
-            <Typography variant="body2" color="text.secondary">
-              OR
-            </Typography>
-          </Divider>
-          
-          <Button
-            fullWidth
-            variant="outlined"
-            startIcon={<GoogleIcon />}
-            onClick={handleGoogleSignIn}
-            sx={{ 
-              mb: 2, 
-              height: '45px',
-              borderColor: '#db4437',
-              color: '#db4437',
-              '&:hover': {
-                borderColor: '#c23321',
-                backgroundColor: 'rgba(219, 68, 55, 0.04)'
-              }
-            }}
-          >
-            Continue with Google
-          </Button>
+          {tabValue === 0 && (
+            <>
+              <Divider sx={{ width: '100%', my: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  OR
+                </Typography>
+              </Divider>
+              
+              <Button
+                fullWidth
+                variant="outlined"
+                startIcon={<GoogleIcon />}
+                onClick={handleGoogleSignIn}
+                sx={{ 
+                  mb: 2, 
+                  height: '45px',
+                  borderColor: '#db4437',
+                  color: '#db4437',
+                  '&:hover': {
+                    borderColor: '#c23321',
+                    backgroundColor: 'rgba(219, 68, 55, 0.04)'
+                  }
+                }}
+              >
+                Continue with Google
+              </Button>
+            </>
+          )}
           
           <Box sx={{ textAlign: 'center' }}>
             <MuiLink component={Link} to="/signup" variant="body2" sx={{ textDecoration: 'none' }}>

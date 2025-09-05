@@ -12,6 +12,7 @@ import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import Dashboard from './components/Dashboard';
+import AdminPanel from './components/AdminPanel';
 
 const theme = createTheme({
   palette: {
@@ -168,6 +169,14 @@ function App() {
               !isAuthenticated ? 
               <Signup /> : 
               <Navigate to="/dashboard" replace />
+            } 
+          />
+          <Route 
+            path="/admin" 
+            element={
+              isAuthenticated ? 
+              <AdminPanel /> : 
+              <Navigate to="/login" replace />
             } 
           />
         </Routes>
