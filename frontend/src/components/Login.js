@@ -10,8 +10,10 @@ import {
   Paper,
   Link as MuiLink,
   Alert,
-  CircularProgress
+  CircularProgress,
+  Divider
 } from '@mui/material';
+import GoogleIcon from '@mui/icons-material/Google';
 
 const Login = ({ setAuth }) => {
   const [formData, setFormData] = useState({
@@ -24,12 +26,41 @@ const Login = ({ setAuth }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Check for success message from registration
+  // Check for success message from registration and Google OAuth errors
   useEffect(() => {
+    const checkExistingAuth = async () => {
+      // Check if user is already authenticated via session
+      try {
+        const response = await axios.get('http://localhost:5000/api/auth/check-auth', {
+          withCredentials: true
+        });
+        
+        if (response.data.isAuthenticated) {
+          // User is already authenticated, redirect to dashboard
+          localStorage.setItem('user', JSON.stringify(response.data.user));
+          localStorage.setItem('token', 'session-auth-token');
+          navigate('/dashboard');
+          return;
+        }
+      } catch (error) {
+        // Ignore auth check errors, user is not authenticated
+      }
+    };
+
+    checkExistingAuth();
+
     if (location.state?.message) {
       setSuccessMessage(location.state.message);
     }
-  }, [location]);
+    
+    // Check for Google OAuth error
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('error') === 'google_auth_failed') {
+      setError('Google authentication failed. Please try again.');
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [location, navigate]);
 
   const { email, password } = formData;
 
@@ -69,6 +100,10 @@ const Login = ({ setAuth }) => {
     }
   };
 
+  const handleGoogleSignIn = () => {
+    // Redirect to Google OAuth
+    window.location.href = 'http://localhost:5000/api/auth/google';
+  };
 
   return (
     <Container component="main" maxWidth="xs">
@@ -125,6 +160,32 @@ const Login = ({ setAuth }) => {
           >
             {loading ? <CircularProgress size={24} color="inherit" /> : 'Sign In'}
           </Button>
+          
+          <Divider sx={{ width: '100%', my: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              OR
+            </Typography>
+          </Divider>
+          
+          <Button
+            fullWidth
+            variant="outlined"
+            startIcon={<GoogleIcon />}
+            onClick={handleGoogleSignIn}
+            sx={{ 
+              mb: 2, 
+              height: '45px',
+              borderColor: '#db4437',
+              color: '#db4437',
+              '&:hover': {
+                borderColor: '#c23321',
+                backgroundColor: 'rgba(219, 68, 55, 0.04)'
+              }
+            }}
+          >
+            Continue with Google
+          </Button>
+          
           <Box sx={{ textAlign: 'center' }}>
             <MuiLink component={Link} to="/signup" variant="body2" sx={{ textDecoration: 'none' }}>
               {"Don't have an account? Sign Up"}
