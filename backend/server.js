@@ -1,15 +1,48 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const session = require('express-session');
+const passport = require('passport');
+
+// Load environment variables first
 require('dotenv').config();
 
 const authRoutes = require('./routes/auth');
+require('./config/passport');
 
 const app = express();
 
-// Middleware
-app.use(cors());
+// Debug middleware to log all requests
+app.use((req, res, next) => {
+    console.log(`🌐 ${req.method} ${req.url} from origin: ${req.headers.origin || 'no-origin'}`);
+    next();
+});
+
+// Middleware - Temporary permissive CORS for development
+app.use(cors({
+    origin: true, // Allow all origins in development
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
+}));
 app.use(express.json());
+
+// Session configuration
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'your-secret-key',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: false, // Set to true in production with HTTPS
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        httpOnly: false, // Allow JavaScript access for debugging
+        sameSite: 'lax' // CSRF protection
+    }
+}));
+
+// Passport middleware
+app.use(passport.initialize());
+app.use(passport.session());
 
 // MongoDB Connection
 const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/booklibrary';

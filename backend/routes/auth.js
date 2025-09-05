@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const passport = require('passport');
 const User = require('../models/User');
 
 // Signup Route
@@ -59,5 +60,83 @@ router.post('/login', async (req, res) => {
     }
 });
 
+
+// Google OAuth Routes
+router.get('/google', passport.authenticate('google', {
+    scope: ['profile', 'email']
+}));
+
+router.get('/google/callback', 
+    passport.authenticate('google', { failureRedirect: 'http://localhost:3001/login?error=google_auth_failed' }),
+    (req, res) => {
+        console.log('✅ Google OAuth successful for user:', req.user);
+        console.log('✅ Session ID:', req.sessionID);
+        console.log('✅ User authenticated:', req.isAuthenticated());
+        
+        // Ensure session is saved before redirecting
+        req.session.save((err) => {
+            if (err) {
+                console.error('❌ Session save error:', err);
+                return res.redirect('http://localhost:3001/login?error=session_error');
+            }
+            
+            // Successful authentication, redirect to dashboard with success message
+            console.log('✅ Session saved, redirecting to dashboard');
+            res.redirect('http://localhost:3001/dashboard?google_auth=success');
+        });
+    }
+);
+
+// Test endpoint to check session
+router.get('/test-session', (req, res) => {
+    console.log('🧪 Test session endpoint called');
+    console.log('🧪 Session ID:', req.sessionID);
+    console.log('🧪 Session data:', req.session);
+    console.log('🧪 Is authenticated:', req.isAuthenticated());
+    console.log('🧪 User:', req.user);
+    
+    res.json({
+        sessionID: req.sessionID,
+        isAuthenticated: req.isAuthenticated(),
+        user: req.user,
+        sessionData: req.session
+    });
+});
+
+// Check if user is authenticated
+router.get('/check-auth', (req, res) => {
+    console.log('🔍 Auth check - Session ID:', req.sessionID);
+    console.log('🔍 Auth check - Is authenticated:', req.isAuthenticated());
+    console.log('🔍 Auth check - User:', req.user ? 'Present' : 'Not present');
+    console.log('🔍 Auth check - Session data:', req.session);
+    console.log('🔍 Auth check - Headers:', req.headers);
+    
+    if (req.isAuthenticated()) {
+        console.log('✅ Auth check - User authenticated, returning user data');
+        res.json({
+            isAuthenticated: true,
+            user: {
+                id: req.user._id,
+                email: req.user.email,
+                username: req.user.username,
+                googleName: req.user.googleName,
+                googleId: req.user.googleId
+            }
+        });
+    } else {
+        console.log('❌ Auth check - User not authenticated');
+        res.json({ isAuthenticated: false });
+    }
+});
+
+// Logout route
+router.post('/logout', (req, res) => {
+    req.logout((err) => {
+        if (err) {
+            return res.status(500).json({ message: 'Error logging out' });
+        }
+        res.json({ message: 'Logged out successfully' });
+    });
+});
 
 module.exports = router;
