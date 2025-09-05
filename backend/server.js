@@ -8,6 +8,7 @@ const passport = require('passport');
 require('dotenv').config();
 
 const authRoutes = require('./routes/auth');
+const bookRoutes = require('./routes/books');
 require('./config/passport');
 
 const app = express();
@@ -57,6 +58,9 @@ app.get('/', (req, res) => {
 
 // Auth Routes
 app.use('/api/auth', authRoutes);
+
+// Book Routes
+app.use('/api/books', bookRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

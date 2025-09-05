@@ -51,7 +51,8 @@ router.post('/login', async (req, res) => {
             user: {
                 id: user._id,
                 username: user.username,
-                email: user.email
+                email: user.email,
+                role: user.role
             }
         });
     } catch (error) {
@@ -120,7 +121,8 @@ router.get('/check-auth', (req, res) => {
                 email: req.user.email,
                 username: req.user.username,
                 googleName: req.user.googleName,
-                googleId: req.user.googleId
+                googleId: req.user.googleId,
+                role: req.user.role
             }
         });
     } else {
