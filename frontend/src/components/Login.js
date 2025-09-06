@@ -83,7 +83,8 @@ const Login = ({ setAuth }) => {
       const config = {
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        withCredentials: true // Enable cookies for session management
       };
 
       const body = JSON.stringify({ email, password });

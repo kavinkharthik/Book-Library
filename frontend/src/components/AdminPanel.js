@@ -19,9 +19,25 @@ import {
   CardMedia,
   IconButton,
   Chip,
-  Divider
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Avatar,
+  Tabs,
+  Tab
 } from '@mui/material';
-import { Delete as DeleteIcon, Edit as EditIcon } from '@mui/icons-material';
+import { 
+  Delete as DeleteIcon, 
+  Person as PersonIcon,
+  AccessTime as AccessTimeIcon,
+  Email as EmailIcon,
+  AdminPanelSettings as AdminIcon,
+  Book as BookIcon,
+  OnlinePrediction as OnlineIcon
+} from '@mui/icons-material';
 import axios from 'axios';
 
 const AdminPanel = () => {
@@ -36,14 +52,31 @@ const AdminPanel = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [users, setUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [activeUsers, setActiveUsers] = useState([]);
+  const [activeUsersLoading, setActiveUsersLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
 
   const genres = [
     'comedy', 'horror', 'romance', 'sci-fi', 'fantasy', 
-    'mystery', 'thriller', 'biography', 'history', 'self-help'
+    'mystery', 'biography', 'history'
   ];
 
   useEffect(() => {
     fetchBooks();
+    fetchUsers();
+    fetchActiveUsers();
+    
+    // Set up auto-refresh for active users every 30 seconds
+    const activeUsersInterval = setInterval(() => {
+      fetchActiveUsers();
+    }, 30000); // 30 seconds
+    
+    // Cleanup interval on component unmount
+    return () => {
+      clearInterval(activeUsersInterval);
+    };
   }, []);
 
   const fetchBooks = async () => {
@@ -55,6 +88,57 @@ const AdminPanel = () => {
     } catch (error) {
       console.error('Error fetching books:', error);
     }
+  };
+
+  const fetchUsers = async () => {
+    setUsersLoading(true);
+    try {
+      console.log('📤 Fetching users from API...');
+      const response = await axios.get('http://localhost:5000/api/users', {
+        withCredentials: true,
+        timeout: 10000 // 10 second timeout
+      });
+      console.log('📥 Users response:', response.data);
+      setUsers(response.data);
+      setError(''); // Clear any previous errors
+    } catch (error) {
+      console.error('❌ Error fetching users:', error);
+      if (error.code === 'ECONNREFUSED' || error.message === 'Network Error') {
+        setError('Backend server is not running. Please start the backend server first.');
+      } else if (error.response?.status === 401) {
+        setError('Authentication required. Please log in as admin.');
+      } else if (error.response?.status === 403) {
+        setError('Admin access required to view users.');
+      } else if (error.response?.status === 404) {
+        setError('Users API endpoint not found. Please check server configuration.');
+      } else {
+        setError(`Failed to fetch users: ${error.response?.data?.message || error.message}`);
+      }
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  const fetchActiveUsers = async () => {
+    setActiveUsersLoading(true);
+    try {
+      console.log('🟢 Fetching active users from API...');
+      const response = await axios.get('http://localhost:5000/api/users/active', {
+        withCredentials: true,
+        timeout: 10000 // 10 second timeout
+      });
+      console.log('🟢 Active users response:', response.data);
+      setActiveUsers(response.data);
+    } catch (error) {
+      console.error('❌ Error fetching active users:', error);
+      // Don't set error state for active users as it's not critical
+    } finally {
+      setActiveUsersLoading(false);
+    }
+  };
+
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
   };
 
   const handleChange = (e) => {
@@ -90,10 +174,10 @@ const AdminPanel = () => {
       });
       fetchBooks(); // Refresh the books list
       
-      // Also refresh the dashboard if it's open
+      // Clear success message after 3 seconds
       setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+        setMessage('');
+      }, 3000);
     } catch (error) {
       setError(error.response?.data?.message || 'Error adding book');
     } finally {
@@ -135,7 +219,7 @@ const AdminPanel = () => {
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Typography variant="h4" component="h1" gutterBottom>
-        Admin Panel - Book Management
+        Admin Panel
       </Typography>
 
       {message && (
@@ -149,6 +233,39 @@ const AdminPanel = () => {
           {error}
         </Alert>
       )}
+
+      {/* Tabs */}
+      <Paper elevation={1} sx={{ mb: 3 }}>
+        <Tabs 
+          value={activeTab} 
+          onChange={handleTabChange} 
+          indicatorColor="primary"
+          textColor="primary"
+        >
+          <Tab 
+            icon={<BookIcon />} 
+            label="Book Management" 
+            iconPosition="start"
+          />
+          <Tab 
+            icon={<PersonIcon />} 
+            label="User Management" 
+            iconPosition="start"
+          />
+          <Tab 
+            icon={<OnlineIcon />} 
+            label="Active Users" 
+            iconPosition="start"
+          />
+        </Tabs>
+      </Paper>
+
+      {/* Tab Content */}
+      {activeTab === 0 && (
+        <Box>
+          <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 3 }}>
+            Book Management
+          </Typography>
 
       <Grid container spacing={3}>
         {/* Add Book Form - Vertical */}
@@ -243,46 +360,37 @@ const AdminPanel = () => {
                 </Typography>
               </Box>
             ) : (
-              <Box sx={{ 
-                display: 'flex', 
-                gap: 2, 
-                overflowX: 'auto',
-                pb: 1,
-                '&::-webkit-scrollbar': {
-                  height: 6,
-                },
-                '&::-webkit-scrollbar-track': {
-                  backgroundColor: '#f1f1f1',
-                  borderRadius: 3,
-                },
-                '&::-webkit-scrollbar-thumb': {
-                  backgroundColor: '#c1c1c1',
-                  borderRadius: 3,
-                },
-                '&::-webkit-scrollbar-thumb:hover': {
-                  backgroundColor: '#a8a8a8',
-                },
-              }}>
+              <Grid container spacing={2}>
                 {books.map((book) => (
-                  <Card key={book._id} sx={{ 
-                    minWidth: 200,
-                    maxWidth: 200,
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    '&:hover': {
-                      boxShadow: 4,
-                      transform: 'translateY(-2px)',
-                      transition: 'all 0.2s ease-in-out'
-                    }
-                  }}>
+                  <Grid item xs={12} sm={6} key={book._id}>
+                    <Card sx={{ 
+                      height: '350px',
+                      width: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      '&:hover': {
+                        boxShadow: 4,
+                        transform: 'translateY(-2px)',
+                        transition: 'all 0.2s ease-in-out'
+                      }
+                    }}>
                     {book.coverImage && (
                       <CardMedia
                         component="img"
-                        height="120"
                         image={book.coverImage}
                         alt={book.title}
-                        sx={{ objectFit: 'cover' }}
+                        onError={(e) => {
+                          e.target.src = 'https://via.placeholder.com/300x400/4A90E2/FFFFFF?text=Book+Cover';
+                          e.target.onerror = null; // Prevent infinite loop
+                        }}
+                        sx={{ 
+                          height: '200px',
+                          width: '100%',
+                          objectFit: 'cover',
+                          objectPosition: 'center',
+                          backgroundColor: '#f5f5f5',
+                          display: 'block'
+                        }}
                       />
                     )}
                     <CardContent sx={{ flexGrow: 1, p: 1.5 }}>
@@ -321,7 +429,6 @@ const AdminPanel = () => {
                       <Typography 
                         variant="caption" 
                         sx={{ 
-                          display: 'block',
                           color: 'text.secondary',
                           lineHeight: 1.3,
                           overflow: 'hidden',
@@ -349,13 +456,286 @@ const AdminPanel = () => {
                         <DeleteIcon />
                       </IconButton>
                     </CardActions>
-                  </Card>
+                    </Card>
+                  </Grid>
                 ))}
-              </Box>
+              </Grid>
             )}
           </Paper>
         </Grid>
       </Grid>
+        </Box>
+      )}
+
+      {/* User Management Tab */}
+      {activeTab === 1 && (
+        <Box>
+          <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 3 }}>
+            User Management
+          </Typography>
+          
+          <Paper elevation={3} sx={{ p: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+              <PersonIcon sx={{ mr: 1, color: '#3b82f6' }} />
+              <Typography variant="h6">
+                Registered Users ({users.length})
+              </Typography>
+            </Box>
+
+            {usersLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : error ? (
+              <Box sx={{ textAlign: 'center', py: 4 }}>
+                <PersonIcon sx={{ fontSize: 64, color: '#ef4444', mb: 2 }} />
+                <Typography variant="h6" color="error" gutterBottom>
+                  Error Loading Users
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                  {error}
+                </Typography>
+                {error.includes('Backend server is not running') && (
+                  <Box sx={{ mb: 3, p: 2, bgcolor: '#f3f4f6', borderRadius: 1 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                      To start the backend server:
+                    </Typography>
+                    <Typography variant="body2" component="div" sx={{ fontFamily: 'monospace', bgcolor: '#1f2937', color: '#f9fafb', p: 1, borderRadius: 0.5 }}>
+                      1. Open terminal in the backend directory<br/>
+                      2. Run: <strong>node server.js</strong><br/>
+                      3. Make sure MongoDB is running
+                    </Typography>
+                  </Box>
+                )}
+                <Button
+                  variant="contained"
+                  onClick={fetchUsers}
+                  sx={{
+                    bgcolor: '#3b82f6',
+                    '&:hover': { bgcolor: '#2563eb' }
+                  }}
+                >
+                  Retry
+                </Button>
+              </Box>
+            ) : users.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 4 }}>
+                <PersonIcon sx={{ fontSize: 64, color: '#d1d5db', mb: 2 }} />
+                <Typography variant="h6" color="text.secondary">
+                  No users found
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Users will appear here once they register
+                </Typography>
+              </Box>
+            ) : (
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>User</TableCell>
+                      <TableCell>Email</TableCell>
+                      <TableCell>Role</TableCell>
+                      <TableCell>Registration Date</TableCell>
+                      <TableCell>Last Login</TableCell>
+                      <TableCell>Status</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {users.map((user) => (
+                      <TableRow key={user._id} hover>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Avatar sx={{ mr: 2, bgcolor: '#3b82f6' }}>
+                              {user.googleName ? user.googleName.charAt(0).toUpperCase() : user.username.charAt(0).toUpperCase()}
+                            </Avatar>
+                            <Box>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                                {user.googleName || user.username}
+                              </Typography>
+                              {user.googleName && (
+                                <Typography variant="caption" color="text.secondary">
+                                  Google User
+                                </Typography>
+                              )}
+                            </Box>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <EmailIcon sx={{ mr: 1, fontSize: 16, color: '#64748b' }} />
+                            <Typography variant="body2">
+                              {user.email}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            icon={user.role === 'admin' ? <AdminIcon /> : <PersonIcon />}
+                            label={user.role}
+                            color={user.role === 'admin' ? 'primary' : 'default'}
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <AccessTimeIcon sx={{ mr: 1, fontSize: 16, color: '#64748b' }} />
+                            <Typography variant="body2">
+                              {new Date(user.createdAt).toLocaleDateString()}
+                            </Typography>
+                          </Box>
+                          <Typography variant="caption" color="text.secondary">
+                            {new Date(user.createdAt).toLocaleTimeString()}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <AccessTimeIcon sx={{ mr: 1, fontSize: 16, color: '#64748b' }} />
+                            <Typography variant="body2">
+                              {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}
+                            </Typography>
+                          </Box>
+                          {user.lastLogin && (
+                            <Typography variant="caption" color="text.secondary">
+                              {new Date(user.lastLogin).toLocaleTimeString()}
+                            </Typography>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={user.lastLogin ? 'Active' : 'Inactive'}
+                            color={user.lastLogin ? 'success' : 'default'}
+                            size="small"
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </Paper>
+        </Box>
+      )}
+
+      {/* Active Users Tab */}
+      {activeTab === 2 && (
+        <Box>
+          <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 3 }}>
+            Currently Signed-In Users
+          </Typography>
+          
+          <Paper elevation={3} sx={{ p: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+              <OnlineIcon sx={{ mr: 1, color: '#10b981' }} />
+              <Typography variant="h6">
+                Active Users ({activeUsers.length})
+              </Typography>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={fetchActiveUsers}
+                disabled={activeUsersLoading}
+                sx={{ ml: 'auto' }}
+              >
+                {activeUsersLoading ? <CircularProgress size={16} /> : 'Refresh'}
+              </Button>
+            </Box>
+
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Users who have logged in within the last 30 minutes
+            </Typography>
+
+            {activeUsersLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : activeUsers.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 4 }}>
+                <OnlineIcon sx={{ fontSize: 64, color: '#d1d5db', mb: 2 }} />
+                <Typography variant="h6" color="text.secondary">
+                  No Active Users
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  No users have logged in recently
+                </Typography>
+              </Box>
+            ) : (
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>User</TableCell>
+                      <TableCell>Email</TableCell>
+                      <TableCell>Role</TableCell>
+                      <TableCell>Last Login</TableCell>
+                      <TableCell>Status</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {activeUsers.map((user) => (
+                      <TableRow key={user._id} hover>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Avatar sx={{ mr: 2, bgcolor: '#10b981' }}>
+                              {user.googleName ? user.googleName.charAt(0).toUpperCase() : user.username.charAt(0).toUpperCase()}
+                            </Avatar>
+                            <Box>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                                {user.googleName || user.username}
+                              </Typography>
+                              {user.googleName && (
+                                <Typography variant="caption" color="text.secondary">
+                                  Google User
+                                </Typography>
+                              )}
+                            </Box>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <EmailIcon sx={{ mr: 1, fontSize: 16, color: '#64748b' }} />
+                            <Typography variant="body2">
+                              {user.email}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            icon={user.role === 'admin' ? <AdminIcon /> : <PersonIcon />}
+                            label={user.role}
+                            color={user.role === 'admin' ? 'primary' : 'default'}
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <AccessTimeIcon sx={{ mr: 1, fontSize: 16, color: '#64748b' }} />
+                            <Typography variant="body2">
+                              {new Date(user.lastLogin).toLocaleDateString()}
+                            </Typography>
+                          </Box>
+                          <Typography variant="caption" color="text.secondary">
+                            {new Date(user.lastLogin).toLocaleTimeString()}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            icon={<OnlineIcon />}
+                            label="Online"
+                            color="success"
+                            size="small"
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </Paper>
+        </Box>
+      )}
     </Container>
   );
 };
