@@ -14,7 +14,7 @@ const bookSchema = new mongoose.Schema({
     genre: {
         type: String,
         required: true,
-        enum: ['comedy', 'horror', 'romance', 'sci-fi', 'fantasy', 'mystery', 'thriller', 'biography', 'history', 'self-help']
+        enum: ['comedy', 'horror', 'romance', 'sci-fi', 'fantasy', 'mystery', 'biography', 'history']
     },
     description: {
         type: String,
@@ -36,4 +36,5 @@ const bookSchema = new mongoose.Schema({
 });
 
 module.exports = mongoose.model('Book', bookSchema);
+
 

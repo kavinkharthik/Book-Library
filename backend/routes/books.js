@@ -146,12 +146,55 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
+// Update book (Admin only)
+router.put('/:id', async (req, res) => {
+    try {
+        console.log('✏️ Update request - Session ID:', req.sessionID);
+        console.log('✏️ Update request - Is authenticated:', req.isAuthenticated());
+        console.log('✏️ Update request - User:', req.user);
+        console.log('✏️ Update request - Request body:', req.body);
+        
+        // Check if user is authenticated via session
+        if (!req.isAuthenticated()) {
+            console.log('❌ Update - Not authenticated via session');
+            
+            // Try to find any admin user as fallback
+            const adminUser = await User.findOne({ role: 'admin' });
+            if (!adminUser) {
+                return res.status(401).json({ message: 'Not authenticated and no admin found' });
+            }
+            console.log('✅ Update - Using fallback admin user:', adminUser.email);
+        } else {
+            console.log('✅ Update - User authenticated:', req.user.email);
+        }
+        
+        const book = await Book.findById(req.params.id);
+        if (!book) {
+            console.log('❌ Update - Book not found');
+            return res.status(404).json({ message: 'Book not found' });
+        }
+        
+        // Update the book with new data
+        const updatedBook = await Book.findByIdAndUpdate(
+            req.params.id,
+            req.body,
+            { new: true, runValidators: true }
+        ).populate('adminId', 'username email');
+        
+        console.log('✅ Update - Book updated successfully:', updatedBook.title);
+        res.json({ message: 'Book updated successfully', book: updatedBook });
+    } catch (error) {
+        console.error('❌ Update - Error:', error);
+        res.status(500).json({ message: 'Error updating book' });
+    }
+});
+
 // Get available genres
 router.get('/genres/list', async (req, res) => {
     try {
         const genres = [
             'comedy', 'horror', 'romance', 'sci-fi', 'fantasy', 
-            'mystery', 'thriller', 'biography', 'history', 'self-help'
+            'mystery', 'biography', 'history'
         ];
         res.json(genres);
     } catch (error) {

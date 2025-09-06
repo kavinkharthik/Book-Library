@@ -9,6 +9,7 @@ require('dotenv').config();
 
 const authRoutes = require('./routes/auth');
 const bookRoutes = require('./routes/books');
+const userRoutes = require('./routes/users');
 require('./config/passport');
 
 const app = express();
@@ -48,8 +49,11 @@ app.use(passport.session());
 // MongoDB Connection
 const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/booklibrary';
 mongoose.connect(mongoUri)
-.then(() => console.log('MongoDB connected successfully'))
-.catch(err => console.error('MongoDB connection error:', err));
+.then(() => console.log('✅ MongoDB connected successfully'))
+.catch(err => {
+    console.error('❌ MongoDB connection error:', err);
+    console.log('⚠️  Server will continue without MongoDB connection');
+});
 
 // Routes
 app.get('/', (req, res) => {
@@ -61,6 +65,9 @@ app.use('/api/auth', authRoutes);
 
 // Book Routes
 app.use('/api/books', bookRoutes);
+
+// User Routes
+app.use('/api/users', userRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

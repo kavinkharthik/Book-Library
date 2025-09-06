@@ -1,0 +1,388 @@
+{
+  "library_info": {
+    "name": "Book Library Professional Collection",
+    "total_books": 44,
+    "total_genres": 10,
+    "last_updated": "2024-09-06",
+    "cover_image_source": "Open Library",
+    "data_quality": "Professional Grade"
+  },
+  "books": [
+    {
+      "id": 1,
+      "title": "The Hitchhiker's Guide to the Galaxy",
+      "author": "Douglas Adams",
+      "genre": "comedy",
+      "isbn": "0345391802",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0345391802-L.jpg",
+      "description": "A comedic science fiction series following Arthur Dent as he travels through space after Earth is destroyed to make way for a hyperspace bypass."
+    },
+    {
+      "id": 2,
+      "title": "Good Omens",
+      "author": "Terry Pratchett & Neil Gaiman",
+      "genre": "comedy",
+      "isbn": "0060853980",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0060853980-L.jpg",
+      "description": "A humorous fantasy novel about an angel and demon who team up to prevent the apocalypse."
+    },
+    {
+      "id": 3,
+      "title": "The New Comedy Bible: The Ultimate Guide to Writing & Performing Stand-up Comedy",
+      "author": "Judy Carter",
+      "genre": "comedy",
+      "isbn": "1580650152",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/1580650152-L.jpg",
+      "description": "A comprehensive guide to stand-up comedy writing and performance, featuring techniques, exercises, and insights from a professional comedian."
+    },
+    {
+      "id": 4,
+      "title": "Bossypants",
+      "author": "Tina Fey",
+      "genre": "comedy",
+      "isbn": "0316056863",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0316056863-L.jpg",
+      "description": "A humorous memoir by the comedian and writer, sharing stories from her life and career in comedy."
+    },
+    {
+      "id": 5,
+      "title": "Born Standing Up: A Comic's Life",
+      "author": "Steve Martin",
+      "genre": "comedy",
+      "isbn": "1416553649",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/1416553649-L.jpg",
+      "description": "A memoir by the legendary comedian Steve Martin about his journey in stand-up comedy and entertainment."
+    },
+    {
+      "id": 6,
+      "title": "Yes Please",
+      "author": "Amy Poehler",
+      "genre": "comedy",
+      "isbn": "0062268341",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0062268341-L.jpg",
+      "description": "A humorous memoir by the comedian and actress, sharing stories from her life and career."
+    },
+    {
+      "id": 7,
+      "title": "The Shining",
+      "author": "Stephen King",
+      "genre": "horror",
+      "isbn": "0307743659",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0307743659-L.jpg",
+      "description": "A psychological horror novel about a writer who becomes caretaker of an isolated hotel during the winter."
+    },
+    {
+      "id": 8,
+      "title": "Dracula",
+      "author": "Bram Stoker",
+      "genre": "horror",
+      "isbn": "014143984X",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/014143984X-L.jpg",
+      "description": "The classic vampire novel that introduced Count Dracula and established many conventions of vampire fiction."
+    },
+    {
+      "id": 9,
+      "title": "Frankenstein",
+      "author": "Mary Shelley",
+      "genre": "horror",
+      "isbn": "0486282112",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0486282112-L.jpg",
+      "description": "A Gothic horror novel about a scientist who creates a sapient creature in an unorthodox scientific experiment."
+    },
+    {
+      "id": 10,
+      "title": "It",
+      "author": "Stephen King",
+      "genre": "horror",
+      "isbn": "1501142976",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/1501142976-L.jpg",
+      "description": "A terrifying horror novel about a shape-shifting entity that preys on children in a small Maine town."
+    },
+    {
+      "id": 11,
+      "title": "The Exorcist",
+      "author": "William Peter Blatty",
+      "genre": "horror",
+      "isbn": "0061007226",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0061007226-L.jpg",
+      "description": "A classic horror novel about the demonic possession of a young girl and the priest who attempts to save her."
+    },
+    {
+      "id": 12,
+      "title": "The Haunting of Hill House",
+      "author": "Shirley Jackson",
+      "genre": "horror",
+      "isbn": "0143039989",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0143039989-L.jpg",
+      "description": "A classic horror novel about four people who stay in a haunted house to investigate supernatural phenomena."
+    },
+    {
+      "id": 13,
+      "title": "Pet Sematary",
+      "author": "Stephen King",
+      "genre": "horror",
+      "isbn": "1501156705",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/1501156705-L.jpg",
+      "description": "A horror novel about a family who discovers a mysterious burial ground with the power to bring the dead back to life."
+    },
+    {
+      "id": 14,
+      "title": "Pride and Prejudice",
+      "author": "Jane Austen",
+      "genre": "romance",
+      "isbn": "0141439513",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0141439513-L.jpg",
+      "description": "A romantic novel that follows the character development of Elizabeth Bennet, who learns about the repercussions of hasty judgments."
+    },
+    {
+      "id": 15,
+      "title": "The Notebook",
+      "author": "Nicholas Sparks",
+      "genre": "romance",
+      "isbn": "0446698867",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0446698867-L.jpg",
+      "description": "A romantic novel about a man who reads from his notebook to a woman suffering from Alzheimer's disease."
+    },
+    {
+      "id": 16,
+      "title": "The Time Traveler's Wife",
+      "author": "Audrey Niffenegger",
+      "genre": "romance",
+      "isbn": "0156029438",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0156029438-L.jpg",
+      "description": "A romantic novel about a man with a genetic disorder that causes him to time travel unpredictably and his relationship with his wife."
+    },
+    {
+      "id": 17,
+      "title": "Me Before You",
+      "author": "Jojo Moyes",
+      "genre": "romance",
+      "isbn": "0670026603",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0670026603-L.jpg",
+      "description": "A romantic novel about a young woman who becomes a caregiver for a paralyzed man and the relationship that develops between them."
+    },
+    {
+      "id": 18,
+      "title": "The Fault in Our Stars",
+      "author": "John Green",
+      "genre": "romance",
+      "isbn": "0525478817",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0525478817-L.jpg",
+      "description": "A young adult romance novel about two teenagers who meet in a cancer support group and fall in love."
+    },
+    {
+      "id": 19,
+      "title": "Outlander",
+      "author": "Diana Gabaldon",
+      "genre": "romance",
+      "isbn": "0440212561",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0440212561-L.jpg",
+      "description": "A historical romance novel about a World War II nurse who is mysteriously transported back to 18th-century Scotland."
+    },
+    {
+      "id": 20,
+      "title": "Dune",
+      "author": "Frank Herbert",
+      "genre": "sci-fi",
+      "isbn": "0441013597",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0441013597-L.jpg",
+      "description": "An epic science fiction novel set on the desert planet Arrakis, focusing on politics, religion, and ecology."
+    },
+    {
+      "id": 21,
+      "title": "1984",
+      "author": "George Orwell",
+      "genre": "sci-fi",
+      "isbn": "0451524934",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0451524934-L.jpg",
+      "description": "A dystopian social science fiction novel about totalitarian control and surveillance."
+    },
+    {
+      "id": 22,
+      "title": "The Martian",
+      "author": "Andy Weir",
+      "genre": "sci-fi",
+      "isbn": "0553418025",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0553418025-L.jpg",
+      "description": "A science fiction novel about an astronaut stranded on Mars who must find a way to survive."
+    },
+    {
+      "id": 23,
+      "title": "Foundation",
+      "author": "Isaac Asimov",
+      "genre": "sci-fi",
+      "isbn": "0553293354",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0553293354-L.jpg",
+      "description": "A science fiction novel about psychohistory, a mathematical science that can predict the future of large populations."
+    },
+    {
+      "id": 24,
+      "title": "Neuromancer",
+      "author": "William Gibson",
+      "genre": "sci-fi",
+      "isbn": "0441569595",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0441569595-L.jpg",
+      "description": "A cyberpunk science fiction novel about a washed-up computer hacker hired for one last job in cyberspace."
+    },
+    {
+      "id": 25,
+      "title": "The Left Hand of Darkness",
+      "author": "Ursula K. Le Guin",
+      "genre": "sci-fi",
+      "isbn": "0441478123",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0441478123-L.jpg",
+      "description": "A science fiction novel about a human envoy sent to a planet where inhabitants can change gender."
+    },
+    {
+      "id": 26,
+      "title": "Hyperion",
+      "author": "Dan Simmons",
+      "genre": "sci-fi",
+      "isbn": "0553288202",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0553288202-L.jpg",
+      "description": "A science fiction novel about seven pilgrims traveling to the mysterious planet Hyperion."
+    },
+    {
+      "id": 27,
+      "title": "The Lord of the Rings",
+      "author": "J.R.R. Tolkien",
+      "genre": "fantasy",
+      "isbn": "0544003411",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0544003411-L.jpg",
+      "description": "An epic high-fantasy novel about the quest to destroy the One Ring and defeat the Dark Lord Sauron."
+    },
+    {
+      "id": 28,
+      "title": "Harry Potter and the Philosopher's Stone",
+      "author": "J.K. Rowling",
+      "genre": "fantasy",
+      "isbn": "0747532699",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0747532699-L.jpg",
+      "description": "The first novel in the Harry Potter series, following a young wizard's first year at Hogwarts School of Witchcraft and Wizardry."
+    },
+    {
+      "id": 29,
+      "title": "The Name of the Wind",
+      "author": "Patrick Rothfuss",
+      "genre": "fantasy",
+      "isbn": "0756404746",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0756404746-L.jpg",
+      "description": "A fantasy novel following the story of Kvothe, a legendary figure who tells his life story to a chronicler."
+    },
+    {
+      "id": 30,
+      "title": "A Game of Thrones",
+      "author": "George R.R. Martin",
+      "genre": "fantasy",
+      "isbn": "0553573403",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0553573403-L.jpg",
+      "description": "The first book in the A Song of Ice and Fire series, featuring political intrigue and fantasy elements in the fictional world of Westeros."
+    },
+    {
+      "id": 31,
+      "title": "The Wheel of Time",
+      "author": "Robert Jordan",
+      "genre": "fantasy",
+      "isbn": "0812511816",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0812511816-L.jpg",
+      "description": "An epic fantasy series about a young man who discovers he is the reincarnation of an ancient hero."
+    },
+    {
+      "id": 32,
+      "title": "Mistborn: The Final Empire",
+      "author": "Brandon Sanderson",
+      "genre": "fantasy",
+      "isbn": "076531178X",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/076531178X-L.jpg",
+      "description": "A fantasy novel about a young woman who joins a crew of thieves to overthrow an immortal emperor."
+    },
+    {
+      "id": 33,
+      "title": "The Murder of Roger Ackroyd",
+      "author": "Agatha Christie",
+      "genre": "mystery",
+      "isbn": "0062079996",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0062079996-L.jpg",
+      "description": "A detective novel featuring Hercule Poirot investigating the murder of a wealthy man in a small English village."
+    },
+    {
+      "id": 34,
+      "title": "The Girl with the Dragon Tattoo",
+      "author": "Stieg Larsson",
+      "genre": "mystery",
+      "isbn": "0307269752",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0307269752-L.jpg",
+      "description": "A psychological mystery novel about a journalist and a computer hacker investigating a decades-old disappearance."
+    },
+    {
+      "id": 35,
+      "title": "The Big Sleep",
+      "author": "Raymond Chandler",
+      "genre": "mystery",
+      "isbn": "0394758285",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0394758285-L.jpg",
+      "description": "A hard-boiled detective novel featuring private investigator Philip Marlowe in a complex case involving blackmail and murder."
+    },
+    {
+      "id": 36,
+      "title": "In the Woods",
+      "author": "Tana French",
+      "genre": "mystery",
+      "isbn": "0143113496",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0143113496-L.jpg",
+      "description": "A psychological mystery novel about a detective investigating a murder that may be connected to his own childhood trauma."
+    },
+    {
+      "id": 39,
+      "title": "Steve Jobs",
+      "author": "Walter Isaacson",
+      "genre": "biography",
+      "isbn": "1451648537",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/1451648537-L.jpg",
+      "description": "The authorized biography of Steve Jobs, based on more than forty interviews with the Apple co-founder."
+    },
+    {
+      "id": 40,
+      "title": "Long Walk to Freedom",
+      "author": "Nelson Mandela",
+      "genre": "biography",
+      "isbn": "0316548189",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0316548189-L.jpg",
+      "description": "The autobiography of Nelson Mandela, chronicling his life from childhood to his role as South Africa's first black president."
+    },
+    {
+      "id": 41,
+      "title": "Sapiens: A Brief History of Humankind",
+      "author": "Yuval Noah Harari",
+      "genre": "history",
+      "isbn": "0062316095",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/0062316095-L.jpg",
+      "description": "A book that explores how Homo sapiens came to dominate the world through three major revolutions."
+    },
+    {
+      "id": 42,
+      "title": "The Guns of August",
+      "author": "Barbara Tuchman",
+      "genre": "history",
+      "isbn": "034538623X",
+      "cover_image_url": "https://covers.openlibrary.org/b/isbn/034538623X-L.jpg",
+      "description": "A Pulitzer Prize-winning history book about the first month of World War I and the events that led to the conflict."
+    }
+  ],
+  "statistics": {
+    "by_genre": {
+      "comedy": 6,
+      "horror": 7,
+      "romance": 6,
+      "sci-fi": 7,
+      "fantasy": 6,
+      "mystery": 4,
+      "biography": 2,
+      "history": 2
+    },
+    "by_author": {
+      "Stephen King": 3,
+      "Multiple Authors": 41
+    }
+  }
+}

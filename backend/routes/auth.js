@@ -45,15 +45,29 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({ message: 'Invalid email or password' });
         }
 
-        // Login successful
-        res.json({ 
-            message: 'Login successful',
-            user: {
-                id: user._id,
-                username: user.username,
-                email: user.email,
-                role: user.role
+        // Update last login time
+        await User.findByIdAndUpdate(user._id, { lastLogin: new Date() });
+
+        // Create a proper session using Passport
+        req.login(user, (err) => {
+            if (err) {
+                console.error('❌ Passport login error:', err);
+                return res.status(500).json({ message: 'Error creating session' });
             }
+            
+            console.log('✅ Regular login successful, session created for user:', user.email);
+            console.log('✅ Session ID:', req.sessionID);
+            
+            // Login successful
+            res.json({ 
+                message: 'Login successful',
+                user: {
+                    id: user._id,
+                    username: user.username,
+                    email: user.email,
+                    role: user.role
+                }
+            });
         });
     } catch (error) {
         console.error('Login error:', error);
@@ -69,10 +83,18 @@ router.get('/google', passport.authenticate('google', {
 
 router.get('/google/callback', 
     passport.authenticate('google', { failureRedirect: 'http://localhost:3001/login?error=google_auth_failed' }),
-    (req, res) => {
+    async (req, res) => {
         console.log('✅ Google OAuth successful for user:', req.user);
         console.log('✅ Session ID:', req.sessionID);
         console.log('✅ User authenticated:', req.isAuthenticated());
+        
+        // Update last login time
+        try {
+            await User.findByIdAndUpdate(req.user._id, { lastLogin: new Date() });
+            console.log('✅ Last login time updated for user:', req.user.email);
+        } catch (error) {
+            console.error('❌ Error updating last login:', error);
+        }
         
         // Ensure session is saved before redirecting
         req.session.save((err) => {
