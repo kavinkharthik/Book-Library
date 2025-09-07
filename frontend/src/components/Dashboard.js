@@ -21,7 +21,9 @@ import {
   Toolbar,
   Avatar,
   Stack,
-  CardActionArea
+  CardActionArea,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import { 
   Add as AddIcon, 
@@ -46,6 +48,8 @@ const Dashboard = () => {
   const [genreBooks, setGenreBooks] = useState([]);
   const [cart, setCart] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -153,15 +157,18 @@ const Dashboard = () => {
     setCart(prevCart => {
       const existingBook = prevCart.find(item => item._id === book._id);
       if (existingBook) {
+        setSnackbarMessage(`"${book.title}" quantity updated in cart!`);
         return prevCart.map(item =>
           item._id === book._id
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       } else {
+        setSnackbarMessage(`"${book.title}" added to cart successfully!`);
         return [...prevCart, { ...book, quantity: 1 }];
       }
     });
+    setSnackbarOpen(true);
   };
 
   const removeFromCart = (bookId) => {
@@ -977,6 +984,29 @@ const Dashboard = () => {
           </Container>
         </Box>
       </Container>
+
+      {/* Success Notification Snackbar */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={() => setSnackbarOpen(false)}
+          severity="success"
+          variant="filled"
+          sx={{ 
+            width: '100%',
+            '& .MuiAlert-message': {
+              fontSize: '1rem',
+              fontWeight: 'medium'
+            }
+          }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

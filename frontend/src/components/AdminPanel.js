@@ -6,16 +6,11 @@ import {
   Paper,
   TextField,
   Button,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Alert,
   CircularProgress,
   Grid,
   Card,
   CardContent,
-  CardActions,
   CardMedia,
   IconButton,
   Chip,
@@ -27,7 +22,12 @@ import {
   TableRow,
   Avatar,
   Tabs,
-  Tab
+  Tab,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Stack
 } from '@mui/material';
 import { 
   Delete as DeleteIcon, 
@@ -36,7 +36,13 @@ import {
   Email as EmailIcon,
   AdminPanelSettings as AdminIcon,
   Book as BookIcon,
-  OnlinePrediction as OnlineIcon
+  OnlinePrediction as OnlineIcon,
+  Add as AddIcon,
+  Close as CloseIcon,
+  MenuBook as MenuBookIcon,
+  ArrowBack as ArrowBackIcon,
+  Search as SearchIcon,
+  Clear as ClearIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 
@@ -49,7 +55,6 @@ const AdminPanel = () => {
     coverImage: ''
   });
   const [books, setBooks] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [users, setUsers] = useState([]);
@@ -57,6 +62,12 @@ const AdminPanel = () => {
   const [activeUsers, setActiveUsers] = useState([]);
   const [activeUsersLoading, setActiveUsersLoading] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
+  const [selectedGenre, setSelectedGenre] = useState(null);
+  const [genreBooks, setGenreBooks] = useState([]);
+  const [addBookDialogOpen, setAddBookDialogOpen] = useState(false);
+  const [selectedGenreForAdd, setSelectedGenreForAdd] = useState('');
+  const [searchQueries, setSearchQueries] = useState({});
+  const [filteredBooks, setFilteredBooks] = useState({});
 
   const genres = [
     'comedy', 'horror', 'romance', 'sci-fi', 'fantasy', 
@@ -141,6 +152,189 @@ const AdminPanel = () => {
     setActiveTab(newValue);
   };
 
+  // Group books by genre
+  const booksByGenre = books.reduce((acc, book) => {
+    if (!acc[book.genre]) {
+      acc[book.genre] = [];
+    }
+    acc[book.genre].push(book);
+    return acc;
+  }, {});
+
+  const handleGenreClick = (genre) => {
+    const booksInGenre = getDisplayBooks(genre);
+    setSelectedGenre(genre);
+    setGenreBooks(booksInGenre);
+  };
+
+  const handleCloseGenreDialog = () => {
+    setSelectedGenre(null);
+    setGenreBooks([]);
+  };
+
+  const handleAddBookToGenre = (genre) => {
+    setSelectedGenreForAdd(genre);
+    setFormData({
+      ...formData,
+      genre: genre
+    });
+    setAddBookDialogOpen(true);
+  };
+
+  const handleCloseAddBookDialog = () => {
+    setAddBookDialogOpen(false);
+    setSelectedGenreForAdd('');
+    setFormData({
+      title: '',
+      author: '',
+      genre: '',
+      description: '',
+      coverImage: ''
+    });
+  };
+
+  // Search functionality with ranking
+  const getSearchScore = (book, query) => {
+    if (!query || !book) return 0;
+    
+    const searchTerm = query.toLowerCase();
+    const title = book.title.toLowerCase();
+    const author = book.author.toLowerCase();
+    const description = book.description.toLowerCase();
+    
+    let score = 0;
+    
+    // Title matches get highest priority
+    if (title.includes(searchTerm)) {
+      score += 100;
+      // Exact title match gets even higher score
+      if (title === searchTerm) score += 50;
+      // Title starts with search term gets bonus
+      if (title.startsWith(searchTerm)) score += 25;
+    }
+    
+    // Author matches get medium priority
+    if (author.includes(searchTerm)) {
+      score += 50;
+      // Exact author match gets bonus
+      if (author === searchTerm) score += 25;
+    }
+    
+    // Description matches get lower priority
+    if (description.includes(searchTerm)) {
+      score += 10;
+    }
+    
+    return score;
+  };
+
+  const handleSearchChange = (genre, query) => {
+    setSearchQueries(prev => ({
+      ...prev,
+      [genre]: query
+    }));
+
+    // Get all books in this genre
+    const booksInGenre = booksByGenre[genre] || [];
+    
+    if (!query.trim()) {
+      // If no search query, show all books in original order
+      setFilteredBooks(prev => ({
+        ...prev,
+        [genre]: []
+      }));
+    } else {
+      // Sort ALL books by search relevance score (matching books first)
+      const ranked = booksInGenre.sort((a, b) => {
+        const scoreA = getSearchScore(a, query);
+        const scoreB = getSearchScore(b, query);
+        return scoreB - scoreA; // Descending order - highest scores first
+      });
+
+      setFilteredBooks(prev => ({
+        ...prev,
+        [genre]: ranked
+      }));
+    }
+  };
+
+  const clearSearch = (genre) => {
+    setSearchQueries(prev => ({
+      ...prev,
+      [genre]: ''
+    }));
+    setFilteredBooks(prev => ({
+      ...prev,
+      [genre]: []
+    }));
+  };
+
+  const getDisplayBooks = (genre) => {
+    const query = searchQueries[genre] || '';
+    if (query.trim() === '') {
+      return booksByGenre[genre] || [];
+    }
+    
+    const matchingCount = getMatchingBooksCount(genre, query);
+    if (matchingCount === 0) {
+      // If no matches, show all books in original order
+      return booksByGenre[genre] || [];
+    }
+    
+    // When searching and there are matches, show all books sorted by relevance
+    return filteredBooks[genre] || [];
+  };
+
+  const getMatchingBooksCount = (genre, query) => {
+    if (!query.trim()) return 0;
+    
+    const booksInGenre = booksByGenre[genre] || [];
+    return booksInGenre.filter(book => 
+      book.title.toLowerCase().includes(query.toLowerCase()) ||
+      book.author.toLowerCase().includes(query.toLowerCase()) ||
+      book.description.toLowerCase().includes(query.toLowerCase())
+    ).length;
+  };
+
+  const getDisplayBookCount = (genre) => {
+    const query = searchQueries[genre] || '';
+    if (query.trim() === '') {
+      return (booksByGenre[genre] || []).length;
+    }
+    // When searching, show count of matching books
+    return getMatchingBooksCount(genre, query);
+  };
+
+  // Highlight search terms in text
+  const highlightText = (text, searchTerm) => {
+    if (!searchTerm || !text) return text;
+    
+    const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    
+    return parts.map((part, index) => {
+      if (regex.test(part)) {
+        return (
+          <span 
+            key={index} 
+            className="search-highlight"
+            style={{ 
+              backgroundColor: '#fbbf24', 
+              color: '#1e293b', 
+              fontWeight: 'bold',
+              padding: '1px 3px',
+              borderRadius: '3px',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+            }}
+          >
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
+  };
+
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -150,7 +344,6 @@ const AdminPanel = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
     setMessage('');
 
@@ -165,23 +358,24 @@ const AdminPanel = () => {
       console.log('📥 Book creation response:', response.data);
 
       setMessage('Book added successfully!');
+      
+      // Reset form for next book
       setFormData({
         title: '',
         author: '',
-        genre: '',
+        genre: selectedGenreForAdd, // Keep the genre selected
         description: '',
         coverImage: ''
       });
-      fetchBooks(); // Refresh the books list
-      
-      // Clear success message after 3 seconds
+
+      // Reload page after 2 seconds to show updated data
       setTimeout(() => {
-        setMessage('');
-      }, 3000);
+        window.location.reload();
+      }, 2000);
+      
     } catch (error) {
       setError(error.response?.data?.message || 'Error adding book');
-    } finally {
-      setLoading(false);
+      setMessage(''); // Clear success message
     }
   };
 
@@ -199,14 +393,15 @@ const AdminPanel = () => {
           }
         });
         console.log('✅ Book deleted successfully');
+        
         setMessage('Book deleted successfully!');
         setError(''); // Clear any previous errors
-        fetchBooks(); // Refresh the books list
         
-        // Also refresh the dashboard if it's open
+        // Reload page after 2 seconds to show updated data
         setTimeout(() => {
           window.location.reload();
-        }, 1000);
+        }, 2000);
+        
       } catch (error) {
         console.error('❌ Error deleting book:', error);
         console.error('❌ Error response:', error.response);
@@ -218,6 +413,28 @@ const AdminPanel = () => {
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <style>
+        {`
+          @keyframes highlightPulse {
+            0%, 100% { 
+              background-color: #fbbf24;
+              transform: scale(1);
+            }
+            50% { 
+              background-color: #f59e0b;
+              transform: scale(1.02);
+            }
+          }
+          .search-highlight {
+            animation: highlightPulse 0.6s ease-in-out;
+            transition: all 0.2s ease-in-out;
+          }
+          .search-highlight:hover {
+            background-color: #f59e0b !important;
+            transform: scale(1.05);
+          }
+        `}
+      </style>
       <Typography variant="h4" component="h1" gutterBottom>
         Admin Panel
       </Typography>
@@ -264,206 +481,198 @@ const AdminPanel = () => {
       {activeTab === 0 && (
         <Box>
           <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 3 }}>
-            Book Management
+            Book Management by Genre
           </Typography>
 
-      <Grid container spacing={3}>
-        {/* Add Book Form - Vertical */}
-        <Grid item xs={12} md={6}>
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Add New Book
-            </Typography>
-            
-            <Box component="form" onSubmit={handleSubmit}>
-              <TextField
-                fullWidth
-                label="Title"
-                name="title"
-                value={formData.title}
-                onChange={handleChange}
-                required
-                margin="normal"
-              />
-              
-              <TextField
-                fullWidth
-                label="Author"
-                name="author"
-                value={formData.author}
-                onChange={handleChange}
-                required
-                margin="normal"
-              />
-              
-              <FormControl fullWidth margin="normal">
-                <InputLabel>Genre</InputLabel>
-                <Select
-                  name="genre"
-                  value={formData.genre}
-                  onChange={handleChange}
-                  required
-                >
-                  {genres.map((genre) => (
-                    <MenuItem key={genre} value={genre}>
-                      {genre.charAt(0).toUpperCase() + genre.slice(1)}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              
-              <TextField
-                fullWidth
-                label="Description"
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                required
-                multiline
-                rows={4}
-                margin="normal"
-              />
-              
-              <TextField
-                fullWidth
-                label="Cover Image URL (Optional)"
-                name="coverImage"
-                value={formData.coverImage}
-                onChange={handleChange}
-                margin="normal"
-              />
-              
-              <Button
-                type="submit"
-                variant="contained"
-                fullWidth
-                disabled={loading}
-                sx={{ mt: 2 }}
-              >
-                {loading ? <CircularProgress size={24} /> : 'Add Book'}
-              </Button>
-            </Box>
-          </Paper>
-        </Grid>
+          <Typography variant="body1" sx={{ color: '#64748b', mb: 4, maxWidth: '600px' }}>
+            Manage books by genre. Click on a genre card to view and manage books in that category. 
+            Use the "Add Book" button on each genre card to add new books directly to that genre.
+          </Typography>
 
-        {/* Books List - Horizontal */}
-        <Grid item xs={12} md={6}>
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              All Books ({books.length})
-            </Typography>
-            
-            {books.length === 0 ? (
-              <Box sx={{ textAlign: 'center', py: 4 }}>
-                <Typography variant="body2" color="text.secondary">
-                  No books added yet
-                </Typography>
-              </Box>
-            ) : (
-              <Grid container spacing={2}>
-                {books.map((book) => (
-                  <Grid item xs={12} sm={6} key={book._id}>
-                    <Card sx={{ 
-                      height: '350px',
-                      width: '100%',
-                      display: 'flex',
-                      flexDirection: 'column',
+          <Grid container spacing={4}>
+            {genres.map((genre) => {
+              const booksInGenre = booksByGenre[genre] || [];
+              const displayBookCount = getDisplayBookCount(genre);
+              const searchQuery = searchQueries[genre] || '';
+              const genreColors = {
+                'comedy': '#f59e0b',
+                'horror': '#dc2626',
+                'romance': '#ec4899',
+                'sci-fi': '#3b82f6',
+                'fantasy': '#8b5cf6',
+                'mystery': '#6b7280',
+                'biography': '#059669',
+                'history': '#d97706'
+              };
+              
+              return (
+                <Grid item xs={12} sm={6} md={4} key={genre}>
+                  <Card 
+                    sx={{ 
+                      height: '100%',
+                      borderRadius: 3,
+                      border: '1px solid #e2e8f0',
+                      transition: 'all 0.3s ease-in-out',
                       '&:hover': {
-                        boxShadow: 4,
-                        transform: 'translateY(-2px)',
-                        transition: 'all 0.2s ease-in-out'
+                        transform: 'translateY(-8px) scale(1.02)',
+                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                        borderColor: genreColors[genre] || '#3b82f6',
                       }
-                    }}>
-                    {book.coverImage && (
-                      <CardMedia
-                        component="img"
-                        image={book.coverImage}
-                        alt={book.title}
-                        onError={(e) => {
-                          e.target.src = 'https://via.placeholder.com/300x400/4A90E2/FFFFFF?text=Book+Cover';
-                          e.target.onerror = null; // Prevent infinite loop
-                        }}
+                    }}
+                  >
+                    <CardContent sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                      {/* Search Section */}
+                      <Box sx={{ mb: 2 }}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          placeholder={`Search ${genre} books...`}
+                          value={searchQuery}
+                          onChange={(e) => handleSearchChange(genre, e.target.value)}
+                          InputProps={{
+                            startAdornment: <SearchIcon sx={{ color: '#64748b', mr: 1, fontSize: 20 }} />,
+                            endAdornment: searchQuery && (
+                              <IconButton
+                                size="small"
+                                onClick={() => clearSearch(genre)}
+                                sx={{ p: 0.5 }}
+                              >
+                                <ClearIcon fontSize="small" />
+                              </IconButton>
+                            )
+                          }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2,
+                              fontSize: '0.875rem'
+                            }
+                          }}
+                        />
+                      </Box>
+
+                      {/* Genre Info Section */}
+                      <Box 
                         sx={{ 
-                          height: '200px',
-                          width: '100%',
-                          objectFit: 'cover',
-                          objectPosition: 'center',
-                          backgroundColor: '#f5f5f5',
-                          display: 'block'
-                        }}
-                      />
-                    )}
-                    <CardContent sx={{ flexGrow: 1, p: 1.5 }}>
-                      <Typography 
-                        variant="subtitle2" 
-                        component="h3" 
-                        sx={{ 
-                          fontWeight: 'bold',
-                          mb: 0.5,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical'
-                        }}
-                      >
-                        {book.title}
-                      </Typography>
-                      <Typography 
-                        variant="caption" 
-                        color="text.secondary"
-                        sx={{ 
-                          display: 'block',
-                          mb: 0.5,
-                          fontStyle: 'italic'
-                        }}
-                      >
-                        by {book.author}
-                      </Typography>
-                      <Chip 
-                        label={book.genre} 
-                        color="primary" 
-                        size="small" 
-                        sx={{ mb: 0.5 }}
-                      />
-                      <Typography 
-                        variant="caption" 
-                        sx={{ 
-                          color: 'text.secondary',
-                          lineHeight: 1.3,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical'
-                        }}
-                      >
-                        {book.description}
-                      </Typography>
-                    </CardContent>
-                    <CardActions sx={{ p: 1, pt: 0 }}>
-                      <IconButton 
-                        color="error" 
-                        onClick={() => handleDelete(book._id)}
-                        size="small"
-                        sx={{ 
+                          flexGrow: 1, 
+                          textAlign: 'center',
+                          cursor: 'pointer',
                           '&:hover': {
-                            backgroundColor: 'error.light',
-                            color: 'white'
+                            '& .genre-icon': {
+                              transform: 'scale(1.1)'
+                            }
                           }
                         }}
+                        onClick={() => handleGenreClick(genre)}
                       >
-                        <DeleteIcon />
-                      </IconButton>
-                    </CardActions>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
-            )}
-          </Paper>
-        </Grid>
-      </Grid>
+                        <Box
+                          className="genre-icon"
+                          sx={{
+                            width: 50,
+                            height: 50,
+                            borderRadius: '50%',
+                            bgcolor: genreColors[genre] || '#3b82f6',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            mx: 'auto',
+                            mb: 2,
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                            transition: 'transform 0.2s ease-in-out'
+                          }}
+                        >
+                          <MenuBookIcon sx={{ color: 'white', fontSize: 24 }} />
+                        </Box>
+                        
+                        <Typography 
+                          variant="h6" 
+                          component="h3" 
+                          sx={{ 
+                            mb: 1,
+                            fontWeight: 'bold',
+                            textTransform: 'capitalize',
+                            color: '#1e293b'
+                          }}
+                        >
+                          {genre}
+                        </Typography>
+                        
+                        <Chip 
+                          label={`${displayBookCount} ${searchQuery ? 'found' : 'books'}`} 
+                          sx={{ 
+                            mb: 2,
+                            bgcolor: genreColors[genre] || '#3b82f6',
+                            color: 'white',
+                            fontWeight: 'medium',
+                            fontSize: '0.75rem'
+                          }}
+                        />
+                        
+                        <Typography variant="body2" sx={{ color: '#64748b', lineHeight: 1.4, mb: 2, fontSize: '0.8rem' }}>
+                          {searchQuery ? 
+                            (displayBookCount === 0 ? 
+                              'No books found matching your search' : 
+                              `${displayBookCount} book${displayBookCount === 1 ? '' : 's'} found - sorted by relevance`
+                            ) :
+                            booksInGenre.length === 0 ? 
+                              'No books in this genre yet' : 
+                              `Manage ${booksInGenre.length} book${booksInGenre.length === 1 ? '' : 's'} in this genre`
+                          }
+                        </Typography>
+                      </Box>
+
+                      {/* Action Buttons */}
+                      <Stack spacing={1}>
+                        <Button
+                          variant="contained"
+                          startIcon={<AddIcon />}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAddBookToGenre(genre);
+                          }}
+                          fullWidth
+                          sx={{
+                            bgcolor: genreColors[genre] || '#3b82f6',
+                            '&:hover': { 
+                              bgcolor: genreColors[genre] || '#3b82f6',
+                              filter: 'brightness(0.9)'
+                            },
+                            borderRadius: 2,
+                            textTransform: 'none',
+                            fontWeight: 'medium',
+                            fontSize: '0.875rem',
+                            py: 0.5
+                          }}
+                        >
+                          Add Book
+                        </Button>
+
+                        <Button
+                          variant="outlined"
+                          onClick={() => handleGenreClick(genre)}
+                          fullWidth
+                          sx={{
+                            borderColor: genreColors[genre] || '#3b82f6',
+                            color: genreColors[genre] || '#3b82f6',
+                            '&:hover': { 
+                              borderColor: genreColors[genre] || '#3b82f6',
+                              bgcolor: `${genreColors[genre] || '#3b82f6'}10`
+                            },
+                            borderRadius: 2,
+                            textTransform: 'none',
+                            fontWeight: 'medium',
+                            fontSize: '0.875rem',
+                            py: 0.5
+                          }}
+                        >
+                          {searchQuery ? 'View Results' : 'Manage Books'}
+                        </Button>
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              );
+            })}
+          </Grid>
         </Box>
       )}
 
@@ -736,6 +945,364 @@ const AdminPanel = () => {
           </Paper>
         </Box>
       )}
+
+      {/* Genre Books Dialog */}
+      <Dialog 
+        open={selectedGenre !== null} 
+        onClose={handleCloseGenreDialog}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{
+          sx: { minHeight: '80vh' }
+        }}
+      >
+        <DialogTitle sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          pb: 1
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <ArrowBackIcon sx={{ mr: 1, cursor: 'pointer' }} onClick={handleCloseGenreDialog} />
+            <Typography variant="h5" component="h2" sx={{ textTransform: 'capitalize' }}>
+              {selectedGenre} Books Management
+              {searchQueries[selectedGenre] && (
+                <Typography component="span" variant="body2" sx={{ ml: 1, color: '#64748b' }}>
+                  ({getMatchingBooksCount(selectedGenre, searchQueries[selectedGenre])} found - sorted by relevance)
+                </Typography>
+              )}
+            </Typography>
+          </Box>
+          <IconButton onClick={handleCloseGenreDialog} size="small">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        
+        <DialogContent sx={{ p: 3 }}>
+          {/* Search in Dialog */}
+          {selectedGenre && (booksByGenre[selectedGenre] || []).length > 0 && (
+            <Box sx={{ mb: 3 }}>
+              <TextField
+                fullWidth
+                placeholder={`Search books in ${selectedGenre}...`}
+                value={searchQueries[selectedGenre] || ''}
+                onChange={(e) => handleSearchChange(selectedGenre, e.target.value)}
+                InputProps={{
+                  startAdornment: <SearchIcon sx={{ color: '#64748b', mr: 1 }} />,
+                  endAdornment: searchQueries[selectedGenre] && (
+                    <IconButton
+                      size="small"
+                      onClick={() => clearSearch(selectedGenre)}
+                    >
+                      <ClearIcon />
+                    </IconButton>
+                  )
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2
+                  }
+                }}
+              />
+            </Box>
+          )}
+
+          {genreBooks.length === 0 ? (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography variant="h6" color="text.secondary">
+                No books in this genre yet
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 3 }}>
+                Add the first book to this genre
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => handleAddBookToGenre(selectedGenre)}
+                sx={{
+                  bgcolor: '#3b82f6',
+                  '&:hover': { bgcolor: '#2563eb' }
+                }}
+              >
+                Add First Book
+              </Button>
+            </Box>
+          ) : (
+            <Grid container spacing={3}>
+              {genreBooks.map((book) => {
+                const genreColors = {
+                  'comedy': '#f59e0b',
+                  'horror': '#dc2626',
+                  'romance': '#ec4899',
+                  'sci-fi': '#3b82f6',
+                  'fantasy': '#8b5cf6',
+                  'mystery': '#6b7280',
+                  'biography': '#059669',
+                  'history': '#d97706'
+                };
+                
+                return (
+                  <Grid item xs={12} sm={6} md={2.4} key={book._id}>  
+                    <Card 
+                      sx={{ 
+                        height: '480px',
+                        width: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        borderRadius: 3,
+                        border: '1px solid #e2e8f0',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                        overflow: 'hidden',
+                        transition: 'all 0.3s ease-in-out',
+                        '&:hover': {
+                          transform: 'translateY(-8px) scale(1.02)',
+                          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                          borderColor: genreColors[book.genre] || '#3b82f6',
+                        }
+                      }}
+                    >
+                      <Box sx={{ position: 'relative' }}>
+                        <CardMedia
+                          component="img"
+                          image={book.coverImage}
+                          alt={book.title}
+                          onError={(e) => {
+                            e.target.src = 'https://via.placeholder.com/300x400/4A90E2/FFFFFF?text=Book+Cover';
+                            e.target.onerror = null;
+                          }}
+                          sx={{ 
+                            height: '240px',
+                            width: '100%',
+                            objectFit: 'cover',
+                            objectPosition: 'center',
+                            backgroundColor: '#f5f5f5',
+                            display: 'block',
+                            flexShrink: 0,
+                            transition: 'transform 0.3s ease-in-out',
+                            '&:hover': {
+                              transform: 'scale(1.05)'
+                            }
+                          }}
+                        />
+                        <Chip
+                          label={book.genre}
+                          sx={{
+                            position: 'absolute',
+                            top: 8,
+                            right: 8,
+                            bgcolor: genreColors[book.genre] || '#3b82f6',
+                            color: 'white',
+                            fontWeight: 'medium',
+                            fontSize: '0.7rem',
+                            textTransform: 'capitalize',
+                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                            height: '24px'
+                          }}
+                        />
+                      </Box>
+                      <CardContent sx={{ 
+                        height: '240px',
+                        width: '100%',
+                        p: 2,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        flexShrink: 0,
+                        boxSizing: 'border-box',
+                        bgcolor: '#fafafa'
+                      }}>
+                        <Box sx={{ 
+                          height: '140px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between'
+                        }}>
+                          <Box sx={{ height: '50px' }}>
+                            <Typography 
+                              variant="h6" 
+                              component="h3" 
+                              sx={{ 
+                                fontWeight: 'bold',
+                                mb: 0.5,
+                                fontSize: '1rem',
+                                lineHeight: 1.2,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                                height: '2.4rem',
+                                color: '#1e293b'
+                              }}
+                            >
+                              {highlightText(book.title, searchQueries[selectedGenre])}
+                            </Typography>
+                            <Typography 
+                              variant="body2" 
+                              sx={{ 
+                                mb: 1,
+                                fontStyle: 'italic',
+                                fontSize: '0.8rem',
+                                height: '1.2rem',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                color: '#64748b'
+                              }}
+                            >
+                              by {highlightText(book.author, searchQueries[selectedGenre])}
+                            </Typography>
+                          </Box>
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              lineHeight: 1.3,
+                              fontSize: '0.75rem',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 3,
+                              WebkitBoxOrient: 'vertical',
+                              height: '2.9rem',
+                              color: '#64748b'
+                            }}
+                          >
+                            {highlightText(book.description, searchQueries[selectedGenre])}
+                          </Typography>
+                        </Box>
+                        <Button
+                          variant="contained"
+                          color="error"
+                          startIcon={<DeleteIcon />}
+                          onClick={() => handleDelete(book._id)}
+                          fullWidth
+                          sx={{
+                            borderRadius: 2,
+                            textTransform: 'none',
+                            fontWeight: 'medium',
+                            py: 1,
+                            height: '40px',
+                            fontSize: '0.8rem',
+                            flexShrink: 0,
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                            transition: 'all 0.2s ease-in-out',
+                            '&:hover': {
+                              bgcolor: '#dc2626',
+                              filter: 'brightness(0.9)'
+                            }
+                          }}
+                        >
+                          Delete Book
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                );
+              })}
+            </Grid>
+          )}
+        </DialogContent>
+        
+        <DialogActions sx={{ p: 2, pt: 0 }}>
+          <Button 
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => handleAddBookToGenre(selectedGenre)}
+            sx={{
+              bgcolor: '#3b82f6',
+              '&:hover': { bgcolor: '#2563eb' }
+            }}
+          >
+            Add New Book
+          </Button>
+          <Button onClick={handleCloseGenreDialog} variant="outlined">
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add Book Dialog */}
+      <Dialog 
+        open={addBookDialogOpen} 
+        onClose={handleCloseAddBookDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          pb: 1
+        }}>
+          <Typography variant="h5" component="h2">
+            Add Book to {selectedGenreForAdd ? selectedGenreForAdd.charAt(0).toUpperCase() + selectedGenreForAdd.slice(1) : ''} Genre
+          </Typography>
+          <IconButton onClick={handleCloseAddBookDialog} size="small">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        
+        <DialogContent sx={{ p: 3 }}>
+          <Box component="form" onSubmit={handleSubmit}>
+            <TextField
+              fullWidth
+              label="Title"
+              name="title"
+              value={formData.title}
+              onChange={handleChange}
+              required
+              margin="normal"
+            />
+            
+            <TextField
+              fullWidth
+              label="Author"
+              name="author"
+              value={formData.author}
+              onChange={handleChange}
+              required
+              margin="normal"
+            />
+            
+            <TextField
+              fullWidth
+              label="Description"
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
+              required
+              multiline
+              rows={4}
+              margin="normal"
+            />
+            
+            <TextField
+              fullWidth
+              label="Cover Image URL (Optional)"
+              name="coverImage"
+              value={formData.coverImage}
+              onChange={handleChange}
+              margin="normal"
+            />
+          </Box>
+        </DialogContent>
+        
+        <DialogActions sx={{ p: 3, pt: 0 }}>
+          <Button onClick={handleCloseAddBookDialog} variant="outlined">
+            Close
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            variant="contained"
+            sx={{
+              bgcolor: '#3b82f6',
+              '&:hover': { bgcolor: '#2563eb' }
+            }}
+          >
+            Add Book
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };
