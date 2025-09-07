@@ -57,6 +57,9 @@ const AdminPanel = () => {
   const [books, setBooks] = useState([]);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false);
+  const [isAddingBook, setIsAddingBook] = useState(false);
+  const [isDeletingBook, setIsDeletingBook] = useState(false);
   const [users, setUsers] = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [activeUsers, setActiveUsers] = useState([]);
@@ -346,6 +349,7 @@ const AdminPanel = () => {
     e.preventDefault();
     setError('');
     setMessage('');
+    setIsAddingBook(true);
 
     try {
       console.log('📤 Sending book data:', formData);
@@ -358,6 +362,7 @@ const AdminPanel = () => {
       console.log('📥 Book creation response:', response.data);
 
       setMessage('Book added successfully!');
+      setShowSuccessAlert(true);
       
       // Reset form for next book
       setFormData({
@@ -368,19 +373,41 @@ const AdminPanel = () => {
         coverImage: ''
       });
 
-      // Reload page after 2 seconds to show updated data
+      // Close the dialog
+      setAddBookDialogOpen(false);
+      
+      // Refresh books data after 2 seconds
       setTimeout(() => {
-        window.location.reload();
+        fetchBooks();
+        setShowSuccessAlert(false);
+        setMessage('');
       }, 2000);
       
     } catch (error) {
       setError(error.response?.data?.message || 'Error adding book');
       setMessage(''); // Clear success message
+    } finally {
+      setIsAddingBook(false);
     }
   };
 
   const handleDelete = async (bookId) => {
     if (window.confirm('Are you sure you want to delete this book?')) {
+      setIsDeletingBook(true);
+      
+      // Optimistic update - remove book from UI immediately
+      const bookToDelete = books.find(book => book._id === bookId);
+      setBooks(prevBooks => prevBooks.filter(book => book._id !== bookId));
+      
+      // Update genre books if dialog is open
+      if (selectedGenre && genreBooks.length > 0) {
+        setGenreBooks(prevGenreBooks => prevGenreBooks.filter(book => book._id !== bookId));
+      }
+      
+      setMessage('Book deleted successfully!');
+      setShowSuccessAlert(true);
+      setError(''); // Clear any previous errors
+      
       try {
         console.log('🗑️ Deleting book with ID:', bookId);
         console.log('🗑️ Current user from localStorage:', localStorage.getItem('user'));
@@ -392,21 +419,33 @@ const AdminPanel = () => {
             'Accept': 'application/json'
           }
         });
-        console.log('✅ Book deleted successfully');
+        console.log('✅ Book deleted successfully from server');
         
-        setMessage('Book deleted successfully!');
-        setError(''); // Clear any previous errors
-        
-        // Reload page after 2 seconds to show updated data
+        // Auto-hide success alert after 3 seconds
         setTimeout(() => {
-          window.location.reload();
-        }, 2000);
+          setShowSuccessAlert(false);
+          setMessage('');
+        }, 3000);
         
       } catch (error) {
         console.error('❌ Error deleting book:', error);
         console.error('❌ Error response:', error.response);
+        
+        // Revert optimistic update on error
+        if (bookToDelete) {
+          setBooks(prevBooks => [...prevBooks, bookToDelete].sort((a, b) => a.title.localeCompare(b.title)));
+          
+          // Revert genre books if dialog is open
+          if (selectedGenre && genreBooks.length > 0) {
+            setGenreBooks(prevGenreBooks => [...prevGenreBooks, bookToDelete].sort((a, b) => a.title.localeCompare(b.title)));
+          }
+        }
+        
         setError(error.response?.data?.message || 'Error deleting book');
         setMessage(''); // Clear any previous success messages
+        setShowSuccessAlert(false);
+      } finally {
+        setIsDeletingBook(false);
       }
     }
   };
@@ -439,15 +478,93 @@ const AdminPanel = () => {
         Admin Panel
       </Typography>
 
-      {message && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          {message}
+      {message && showSuccessAlert && (
+        <Alert 
+          severity="success" 
+          sx={{ 
+            mb: 2,
+            fontSize: '1rem',
+            fontWeight: 'medium',
+            '& .MuiAlert-message': {
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              width: '100%'
+            }
+          }}
+          action={
+            <IconButton
+              aria-label="close"
+              color="inherit"
+              size="small"
+              onClick={() => {
+                setShowSuccessAlert(false);
+                setMessage('');
+              }}
+            >
+              <CloseIcon fontSize="inherit" />
+            </IconButton>
+          }
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <BookIcon sx={{ mr: 1, fontSize: '1.2rem' }} />
+            {message}
+          </Box>
         </Alert>
       )}
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert 
+          severity="error" 
+          sx={{ 
+            mb: 2,
+            fontSize: '1rem',
+            fontWeight: 'medium'
+          }}
+          action={
+            <IconButton
+              aria-label="close"
+              color="inherit"
+              size="small"
+              onClick={() => setError('')}
+            >
+              <CloseIcon fontSize="inherit" />
+            </IconButton>
+          }
+        >
           {error}
+        </Alert>
+      )}
+
+      {isAddingBook && (
+        <Alert 
+          severity="info" 
+          sx={{ 
+            mb: 2,
+            fontSize: '1rem',
+            fontWeight: 'medium'
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <CircularProgress size={20} sx={{ mr: 2 }} />
+            Adding book... Please wait
+          </Box>
+        </Alert>
+      )}
+
+      {isDeletingBook && (
+        <Alert 
+          severity="info" 
+          sx={{ 
+            mb: 2,
+            fontSize: '1rem',
+            fontWeight: 'medium'
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <CircularProgress size={20} sx={{ mr: 2 }} />
+            Deleting book... Please wait
+          </Box>
         </Alert>
       )}
 
@@ -480,14 +597,6 @@ const AdminPanel = () => {
       {/* Tab Content */}
       {activeTab === 0 && (
         <Box>
-          <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 3 }}>
-            Book Management by Genre
-          </Typography>
-
-          <Typography variant="body1" sx={{ color: '#64748b', mb: 4, maxWidth: '600px' }}>
-            Manage books by genre. Click on a genre card to view and manage books in that category. 
-            Use the "Add Book" button on each genre card to add new books directly to that genre.
-          </Typography>
 
           <Grid container spacing={4}>
             {genres.map((genre) => {
@@ -1173,8 +1282,9 @@ const AdminPanel = () => {
                         <Button
                           variant="contained"
                           color="error"
-                          startIcon={<DeleteIcon />}
+                          startIcon={isDeletingBook ? <CircularProgress size={16} sx={{ color: 'white' }} /> : <DeleteIcon />}
                           onClick={() => handleDelete(book._id)}
+                          disabled={isDeletingBook}
                           fullWidth
                           sx={{
                             borderRadius: 2,
@@ -1189,10 +1299,13 @@ const AdminPanel = () => {
                             '&:hover': {
                               bgcolor: '#dc2626',
                               filter: 'brightness(0.9)'
+                            },
+                            '&:disabled': {
+                              bgcolor: '#9ca3af'
                             }
                           }}
                         >
-                          Delete Book
+                          {isDeletingBook ? 'Deleting...' : 'Delete Book'}
                         </Button>
                       </CardContent>
                     </Card>
@@ -1294,12 +1407,21 @@ const AdminPanel = () => {
           <Button
             onClick={handleSubmit}
             variant="contained"
+            disabled={isAddingBook}
             sx={{
               bgcolor: '#3b82f6',
-              '&:hover': { bgcolor: '#2563eb' }
+              '&:hover': { bgcolor: '#2563eb' },
+              '&:disabled': { bgcolor: '#9ca3af' }
             }}
           >
-            Add Book
+            {isAddingBook ? (
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <CircularProgress size={16} sx={{ mr: 1, color: 'white' }} />
+                Adding...
+              </Box>
+            ) : (
+              'Add Book'
+            )}
           </Button>
         </DialogActions>
       </Dialog>

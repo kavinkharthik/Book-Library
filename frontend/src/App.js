@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
@@ -26,8 +26,11 @@ const theme = createTheme({
 });
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const location = useLocation();
+  // Initialize authentication state from localStorage to prevent redirects on reload
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    const token = localStorage.getItem('token');
+    return !!token;
+  });
 
   // Check if user is authenticated on initial load
   useEffect(() => {
@@ -60,7 +63,7 @@ function App() {
     };
     
     checkAuth();
-  }, [location]);
+  }, []); // Remove location dependency to prevent re-checking on route changes
 
   // Handle Google OAuth redirect
   useEffect(() => {

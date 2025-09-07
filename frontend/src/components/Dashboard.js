@@ -21,9 +21,9 @@ import {
   Toolbar,
   Avatar,
   Stack,
-  CardActionArea,
   Snackbar,
-  Alert
+  Alert,
+  TextField
 } from '@mui/material';
 import { 
   Add as AddIcon, 
@@ -34,8 +34,9 @@ import {
   Star as StarIcon,
   Person as PersonIcon,
   ShoppingCart as ShoppingCartIcon,
-  Remove as RemoveIcon,
-  Delete as DeleteIcon
+  Delete as DeleteIcon,
+  Search as SearchIcon,
+  Clear as ClearIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 
@@ -50,6 +51,8 @@ const Dashboard = () => {
   const [cartOpen, setCartOpen] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [searchQueries, setSearchQueries] = useState({});
+  const [filteredBooks, setFilteredBooks] = useState({});
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -142,7 +145,7 @@ const Dashboard = () => {
   ];
 
   const handleGenreClick = (genre) => {
-    const booksInGenre = booksByGenre[genre] || [];
+    const booksInGenre = getDisplayBooks(genre);
     setSelectedGenre(genre);
     setGenreBooks(booksInGenre);
   };
@@ -152,20 +155,158 @@ const Dashboard = () => {
     setGenreBooks([]);
   };
 
-  // Cart functions
+  // Search functionality with ranking
+  const getSearchScore = (book, query) => {
+    if (!query || !book) return 0;
+    
+    const searchTerm = query.toLowerCase();
+    const title = book.title.toLowerCase();
+    const author = book.author.toLowerCase();
+    const description = book.description.toLowerCase();
+    
+    let score = 0;
+    
+    // Title matches get highest priority
+    if (title.includes(searchTerm)) {
+      score += 100;
+      // Exact title match gets even higher score
+      if (title === searchTerm) score += 50;
+      // Title starts with search term gets bonus
+      if (title.startsWith(searchTerm)) score += 25;
+    }
+    
+    // Author matches get medium priority
+    if (author.includes(searchTerm)) {
+      score += 50;
+      // Exact author match gets bonus
+      if (author === searchTerm) score += 25;
+    }
+    
+    // Description matches get lower priority
+    if (description.includes(searchTerm)) {
+      score += 10;
+    }
+    
+    return score;
+  };
+
+  const handleSearchChange = (genre, query) => {
+    setSearchQueries(prev => ({
+      ...prev,
+      [genre]: query
+    }));
+
+    // Get all books in this genre
+    const booksInGenre = booksByGenre[genre] || [];
+    
+    if (!query.trim()) {
+      // If no search query, show all books in original order
+      setFilteredBooks(prev => ({
+        ...prev,
+        [genre]: []
+      }));
+    } else {
+      // Sort ALL books by search relevance score (matching books first)
+      const ranked = booksInGenre.sort((a, b) => {
+        const scoreA = getSearchScore(a, query);
+        const scoreB = getSearchScore(b, query);
+        return scoreB - scoreA; // Descending order - highest scores first
+      });
+
+      setFilteredBooks(prev => ({
+        ...prev,
+        [genre]: ranked
+      }));
+    }
+  };
+
+  const clearSearch = (genre) => {
+    setSearchQueries(prev => ({
+      ...prev,
+      [genre]: ''
+    }));
+    setFilteredBooks(prev => ({
+      ...prev,
+      [genre]: []
+    }));
+  };
+
+  const getDisplayBooks = (genre) => {
+    const query = searchQueries[genre] || '';
+    if (query.trim() === '') {
+      return booksByGenre[genre] || [];
+    }
+    
+    const matchingCount = getMatchingBooksCount(genre, query);
+    if (matchingCount === 0) {
+      // If no matches, show all books in original order
+      return booksByGenre[genre] || [];
+    }
+    
+    // When searching and there are matches, show all books sorted by relevance
+    return filteredBooks[genre] || [];
+  };
+
+  const getMatchingBooksCount = (genre, query) => {
+    if (!query.trim()) return 0;
+    
+    const booksInGenre = booksByGenre[genre] || [];
+    return booksInGenre.filter(book => 
+      book.title.toLowerCase().includes(query.toLowerCase()) ||
+      book.author.toLowerCase().includes(query.toLowerCase()) ||
+      book.description.toLowerCase().includes(query.toLowerCase())
+    ).length;
+  };
+
+  const getDisplayBookCount = (genre) => {
+    const query = searchQueries[genre] || '';
+    if (query.trim() === '') {
+      return (booksByGenre[genre] || []).length;
+    }
+    // When searching, show count of matching books
+    return getMatchingBooksCount(genre, query);
+  };
+
+  // Highlight search terms in text
+  const highlightText = (text, searchTerm) => {
+    if (!searchTerm || !text) return text;
+    
+    const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    
+    return parts.map((part, index) => {
+      if (regex.test(part)) {
+        return (
+          <span 
+            key={index} 
+            className="search-highlight"
+            style={{ 
+              backgroundColor: '#fbbf24', 
+              color: '#1e293b', 
+              fontWeight: 'bold',
+              padding: '1px 3px',
+              borderRadius: '3px',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+            }}
+          >
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
+  };
+
+  // Cart functions (Library-style - no quantities)
   const addToCart = (book) => {
     setCart(prevCart => {
       const existingBook = prevCart.find(item => item._id === book._id);
       if (existingBook) {
-        setSnackbarMessage(`"${book.title}" quantity updated in cart!`);
-        return prevCart.map(item =>
-          item._id === book._id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
+        setSnackbarMessage(`"${book.title}" is already in your reading list!`);
+        return prevCart; // Don't add duplicate
       } else {
-        setSnackbarMessage(`"${book.title}" added to cart successfully!`);
-        return [...prevCart, { ...book, quantity: 1 }];
+        setSnackbarMessage(`"${book.title}" added to reading list!`);
+        return [...prevCart, book]; // No quantity field needed
       }
     });
     setSnackbarOpen(true);
@@ -175,22 +316,8 @@ const Dashboard = () => {
     setCart(prevCart => prevCart.filter(item => item._id !== bookId));
   };
 
-  const updateQuantity = (bookId, newQuantity) => {
-    if (newQuantity <= 0) {
-      removeFromCart(bookId);
-    } else {
-      setCart(prevCart =>
-        prevCart.map(item =>
-          item._id === bookId
-            ? { ...item, quantity: newQuantity }
-            : item
-        )
-      );
-    }
-  };
-
   const getTotalItems = () => {
-    return cart.reduce((total, item) => total + item.quantity, 0);
+    return cart.length; // Just count unique books
   };
 
   if (loading) {
@@ -215,6 +342,24 @@ const Dashboard = () => {
             0%, 100% { transform: translateY(0px); }
             50% { transform: translateY(-10px); }
           }
+          @keyframes highlightPulse {
+            0%, 100% { 
+              background-color: #fbbf24;
+              transform: scale(1);
+            }
+            50% { 
+              background-color: #f59e0b;
+              transform: scale(1.02);
+            }
+          }
+          .search-highlight {
+            animation: highlightPulse 0.6s ease-in-out;
+            transition: all 0.2s ease-in-out;
+          }
+          .search-highlight:hover {
+            background-color: #f59e0b !important;
+            transform: scale(1.05);
+          }
           @keyframes fadeInUp {
             from {
               opacity: 0;
@@ -237,13 +382,40 @@ const Dashboard = () => {
           }
         `}
       </style>
-      {/* Professional Header */}
-      <AppBar position="static" elevation={0} sx={{ bgcolor: '#1e293b' }}>
-        <Toolbar sx={{ py: 1 }}>
-          <MenuBookIcon sx={{ mr: 2, fontSize: 32, color: '#3b82f6' }} />
-          <Typography variant="h5" component="div" sx={{ flexGrow: 1, fontWeight: 'bold', color: 'white' }}>
-            Book Library
-          </Typography>
+      {/* Modern Header */}
+      <AppBar position="static" elevation={0} sx={{ 
+        background: 'linear-gradient(135deg, #1e293b 0%, #334155 50%, #475569 100%)',
+        borderBottom: '1px solid rgba(59, 130, 246, 0.2)',
+        backdropFilter: 'blur(10px)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+      }}>
+        <Toolbar sx={{ py: 1.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
+            <Box sx={{
+              p: 1,
+              borderRadius: 2,
+              background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+              boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+              mr: 2
+            }}>
+              <MenuBookIcon sx={{ 
+                fontSize: 28, 
+                color: 'white',
+                filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2))'
+              }} />
+            </Box>
+            <Typography variant="h5" component="div" sx={{ 
+              fontWeight: 800,
+              background: 'linear-gradient(135deg, #ffffff 0%, #e2e8f0 100%)',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              textShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              letterSpacing: '-0.02em'
+            }}>
+              Digital Library
+            </Typography>
+          </Box>
           <Stack direction="row" spacing={2} alignItems="center">
             <Avatar sx={{ bgcolor: '#3b82f6' }}>
               <PersonIcon />
@@ -257,21 +429,43 @@ const Dashboard = () => {
               </Typography>
             </Box>
             <Button
-              variant="outlined"
+              variant="contained"
               startIcon={<ShoppingCartIcon />}
               onClick={() => setCartOpen(true)}
               sx={{ 
-                color: 'white',
-                borderColor: 'rgba(255,255,255,0.3)',
-                '&:hover': { 
-                  borderColor: 'white',
-                  bgcolor: 'rgba(255,255,255,0.1)'
+                background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                borderRadius: 3,
+                px: 3,
+                py: 1.5,
+                textTransform: 'none',
+                fontWeight: 600,
+                boxShadow: '0 8px 25px rgba(59, 130, 246, 0.3)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                backdropFilter: 'blur(10px)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
+                  boxShadow: '0 12px 35px rgba(59, 130, 246, 0.4)',
+                  transform: 'translateY(-3px) scale(1.02)'
                 },
-                borderRadius: 2,
-                position: 'relative'
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                position: 'relative',
+                overflow: 'hidden',
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: '-100%',
+                  width: '100%',
+                  height: '100%',
+                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+                  transition: 'left 0.5s'
+                },
+                '&:hover::before': {
+                  left: '100%'
+                }
               }}
             >
-              Cart
+              Reading List
               {getTotalItems() > 0 && (
                 <Box
                   sx={{
@@ -491,18 +685,46 @@ const Dashboard = () => {
 
 
         {/* Browse Section */}
-        <Box sx={{ mb: 6 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
-            <CategoryIcon sx={{ mr: 2, color: '#3b82f6', fontSize: 28 }} />
-            <Typography variant="h4" component="h2" sx={{ fontWeight: 'bold', color: '#1e293b' }}>
-              Browse by Genre
-            </Typography>
+        <Box sx={{ mb: 8 }}>
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            mb: 4,
+            p: 3,
+            borderRadius: 4,
+            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%)',
+            border: '1px solid rgba(59, 130, 246, 0.1)',
+            backdropFilter: 'blur(10px)'
+          }}>
+            <Box sx={{
+              p: 2,
+              borderRadius: 3,
+              background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+              boxShadow: '0 8px 25px rgba(59, 130, 246, 0.3)',
+              mr: 3
+            }}>
+              <CategoryIcon sx={{ fontSize: 32, color: 'white' }} />
+            </Box>
+            <Box>
+              <Typography variant="h4" component="h2" sx={{ 
+                fontWeight: 800,
+                color: '#1e293b',
+                letterSpacing: '-0.02em',
+                mb: 1
+              }}>
+                Browse by Genre
+              </Typography>
+              <Typography variant="body1" sx={{ 
+                color: '#64748b', 
+                fontSize: '1.1rem',
+                lineHeight: 1.6,
+                maxWidth: '600px'
+              }}>
+                Explore our curated collection of books organized by genre. From thrilling mysteries to heartwarming romances, 
+                find your next favorite read in our diverse library.
+              </Typography>
+            </Box>
           </Box>
-          
-          <Typography variant="body1" sx={{ color: '#64748b', mb: 4, maxWidth: '600px' }}>
-            Explore our curated collection of books organized by genre. From thrilling mysteries to heartwarming romances, 
-            find your next favorite read in our diverse library.
-          </Typography>
         </Box>
 
       {booksLoading ? (
@@ -513,6 +735,8 @@ const Dashboard = () => {
         <Grid container spacing={4}>
           {genres.map((genre) => {
             const booksInGenre = booksByGenre[genre] || [];
+            const displayBookCount = getDisplayBookCount(genre);
+            const searchQuery = searchQueries[genre] || '';
             const genreColors = {
               'comedy': '#f59e0b',
               'horror': '#dc2626',
@@ -530,43 +754,107 @@ const Dashboard = () => {
                   className="fade-in-up"
                   sx={{ 
                     height: '100%',
-                    cursor: 'pointer',
-                    borderRadius: 3,
-                    border: '1px solid #e2e8f0',
-                    transition: 'all 0.3s ease-in-out',
+                    borderRadius: 4,
+                    background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+                    border: '1px solid rgba(59, 130, 246, 0.1)',
+                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+                    transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '4px',
+                      background: `linear-gradient(135deg, ${genreColors[genre]} 0%, ${genreColors[genre]}dd 100%)`,
+                      transform: 'scaleX(0)',
+                      transformOrigin: 'left',
+                      transition: 'transform 0.3s ease'
+                    },
                     '&:hover': {
-                      transform: 'translateY(-8px) scale(1.02)',
-                      boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-                      borderColor: genreColors[genre] || '#3b82f6',
+                      transform: 'translateY(-12px) scale(1.02)',
+                      boxShadow: '0 25px 50px rgba(0,0,0,0.15)',
+                      border: `1px solid ${genreColors[genre]}40`,
+                      '&::before': {
+                        transform: 'scaleX(1)'
+                      }
                     }
                   }}
-                  onClick={() => handleGenreClick(genre)}
                 >
-                  <CardActionArea sx={{ height: '100%' }}>
-                    <CardContent sx={{ p: 4, textAlign: 'center' }}>
-                      <Box
-                        className="pulse"
+                  <CardContent sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    {/* Search Section */}
+                    <Box sx={{ mb: 2 }}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        placeholder={`Search ${genre} books...`}
+                        value={searchQuery}
+                        onChange={(e) => handleSearchChange(genre, e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        InputProps={{
+                          startAdornment: <SearchIcon sx={{ color: '#64748b', mr: 1, fontSize: 20 }} />,
+                          endAdornment: searchQuery && (
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                clearSearch(genre);
+                              }}
+                              sx={{ p: 0.5 }}
+                            >
+                              <ClearIcon fontSize="small" />
+                            </IconButton>
+                          )
+                        }}
                         sx={{
-                          width: 60,
-                          height: 60,
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 2,
+                            fontSize: '0.875rem'
+                          }
+                        }}
+                      />
+                    </Box>
+
+                    {/* Genre Info Section */}
+                    <Box 
+                      sx={{ 
+                        flexGrow: 1, 
+                        textAlign: 'center',
+                        cursor: 'pointer',
+                        '&:hover': {
+                          '& .genre-icon': {
+                            transform: 'scale(1.1)'
+                          }
+                        }
+                      }}
+                      onClick={() => handleGenreClick(genre)}
+                    >
+                      <Box
+                        className="genre-icon"
+                        sx={{
+                          width: 50,
+                          height: 50,
                           borderRadius: '50%',
                           bgcolor: genreColors[genre] || '#3b82f6',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           mx: 'auto',
-                          mb: 3,
-                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                          mb: 2,
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                          transition: 'transform 0.2s ease-in-out'
                         }}
                       >
-                        <MenuBookIcon sx={{ color: 'white', fontSize: 28 }} />
+                        <MenuBookIcon sx={{ color: 'white', fontSize: 24 }} />
                       </Box>
                       
                       <Typography 
-                        variant="h5" 
+                        variant="h6" 
                         component="h3" 
                         sx={{ 
-                          mb: 2,
+                          mb: 1,
                           fontWeight: 'bold',
                           textTransform: 'capitalize',
                           color: '#1e293b'
@@ -576,23 +864,51 @@ const Dashboard = () => {
                       </Typography>
                       
                       <Chip 
-                        label={`${booksInGenre.length} books`} 
+                        label={`${displayBookCount} ${searchQuery ? 'found' : 'books'}`} 
                         sx={{ 
                           mb: 2,
                           bgcolor: genreColors[genre] || '#3b82f6',
                           color: 'white',
-                          fontWeight: 'medium'
+                          fontWeight: 'medium',
+                          fontSize: '0.75rem'
                         }}
                       />
                       
-                      <Typography variant="body2" sx={{ color: '#64748b', lineHeight: 1.6 }}>
-                        {booksInGenre.length === 0 
-                          ? 'No books available yet' 
-                          : `Explore ${booksInGenre.length} carefully curated book${booksInGenre.length === 1 ? '' : 's'} in this genre`
+                      <Typography variant="body2" sx={{ color: '#64748b', lineHeight: 1.4, mb: 2, fontSize: '0.8rem' }}>
+                        {searchQuery ? 
+                          (displayBookCount === 0 ? 
+                            'No books found matching your search' : 
+                            `${displayBookCount} book${displayBookCount === 1 ? '' : 's'} found - sorted by relevance`
+                          ) :
+                          booksInGenre.length === 0 ? 
+                            'No books in this genre yet' : 
+                            `Explore ${booksInGenre.length} book${booksInGenre.length === 1 ? '' : 's'} in this genre`
                         }
                       </Typography>
-                    </CardContent>
-                  </CardActionArea>
+                    </Box>
+
+                    {/* Action Button */}
+                    <Button
+                      variant="outlined"
+                      onClick={() => handleGenreClick(genre)}
+                      fullWidth
+                      sx={{
+                        borderColor: genreColors[genre] || '#3b82f6',
+                        color: genreColors[genre] || '#3b82f6',
+                        '&:hover': { 
+                          borderColor: genreColors[genre] || '#3b82f6',
+                          bgcolor: `${genreColors[genre] || '#3b82f6'}10`
+                        },
+                        borderRadius: 2,
+                        textTransform: 'none',
+                        fontWeight: 'medium',
+                        fontSize: '0.875rem',
+                        py: 0.5
+                      }}
+                    >
+                      {searchQuery ? 'View Results' : 'Browse Books'}
+                    </Button>
+                  </CardContent>
                 </Card>
               </Grid>
             );
@@ -628,6 +944,34 @@ const Dashboard = () => {
         </DialogTitle>
         
         <DialogContent sx={{ p: 3 }}>
+          {/* Search in Dialog */}
+          {selectedGenre && (booksByGenre[selectedGenre] || []).length > 0 && (
+            <Box sx={{ mb: 3 }}>
+              <TextField
+                fullWidth
+                placeholder={`Search books in ${selectedGenre}...`}
+                value={searchQueries[selectedGenre] || ''}
+                onChange={(e) => handleSearchChange(selectedGenre, e.target.value)}
+                InputProps={{
+                  startAdornment: <SearchIcon sx={{ color: '#64748b', mr: 1 }} />,
+                  endAdornment: searchQueries[selectedGenre] && (
+                    <IconButton
+                      size="small"
+                      onClick={() => clearSearch(selectedGenre)}
+                    >
+                      <ClearIcon />
+                    </IconButton>
+                  )
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2
+                  }
+                }}
+              />
+            </Box>
+          )}
+
           {genreBooks.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 4 }}>
               <Typography variant="h6" color="text.secondary">
@@ -660,15 +1004,32 @@ const Dashboard = () => {
                         width: '100%',
                         display: 'flex',
                         flexDirection: 'column',
-                        borderRadius: 3,
-                        border: '1px solid #e2e8f0',
-                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                        borderRadius: 4,
+                        background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+                        border: '1px solid rgba(59, 130, 246, 0.1)',
+                        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
                         overflow: 'hidden',
-                        transition: 'all 0.3s ease-in-out',
+                        transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                        position: 'relative',
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          height: '3px',
+                          background: `linear-gradient(135deg, ${genreColors[book.genre]} 0%, ${genreColors[book.genre]}dd 100%)`,
+                          transform: 'scaleX(0)',
+                          transformOrigin: 'left',
+                          transition: 'transform 0.3s ease'
+                        },
                         '&:hover': {
-                          transform: 'translateY(-8px) scale(1.02)',
-                          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-                          borderColor: genreColors[book.genre] || '#3b82f6',
+                          transform: 'translateY(-12px) scale(1.02)',
+                          boxShadow: '0 25px 50px rgba(0,0,0,0.15)',
+                          border: `1px solid ${genreColors[book.genre]}40`,
+                          '&::before': {
+                            transform: 'scaleX(1)'
+                          }
                         }
                       }}
                     >
@@ -748,7 +1109,7 @@ const Dashboard = () => {
                                 color: '#1e293b'
                               }}
                             >
-                              {book.title}
+                              {highlightText(book.title, searchQueries[selectedGenre])}
                             </Typography>
                             <Typography 
                               variant="body2" 
@@ -763,7 +1124,7 @@ const Dashboard = () => {
                                 color: '#64748b'
                               }}
                             >
-                              by {book.author}
+                              by {highlightText(book.author, searchQueries[selectedGenre])}
                             </Typography>
                           </Box>
                           <Typography 
@@ -780,7 +1141,7 @@ const Dashboard = () => {
                               color: '#64748b'
                             }}
                           >
-                            {book.description}
+                            {highlightText(book.description, searchQueries[selectedGenre])}
                           </Typography>
                         </Box>
                         <Button
@@ -789,23 +1150,41 @@ const Dashboard = () => {
                           onClick={() => addToCart(book)}
                           fullWidth
                           sx={{
-                            bgcolor: genreColors[book.genre] || '#3b82f6',
-                            '&:hover': { 
-                              bgcolor: genreColors[book.genre] || '#3b82f6',
-                              filter: 'brightness(0.9)'
-                            },
-                            borderRadius: 2,
+                            background: `linear-gradient(135deg, ${genreColors[book.genre]} 0%, ${genreColors[book.genre]}dd 100%)`,
+                            borderRadius: 3,
                             textTransform: 'none',
-                            fontWeight: 'medium',
-                            py: 1,
-                            height: '40px',
+                            fontWeight: 600,
+                            py: 1.5,
+                            height: '44px',
                             fontSize: '0.8rem',
                             flexShrink: 0,
-                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                            transition: 'all 0.2s ease-in-out'
+                            boxShadow: `0 8px 25px ${genreColors[book.genre]}30`,
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            backdropFilter: 'blur(10px)',
+                            '&:hover': {
+                              background: `linear-gradient(135deg, ${genreColors[book.genre]}dd 0%, ${genreColors[book.genre]}bb 100%)`,
+                              boxShadow: `0 12px 35px ${genreColors[book.genre]}40`,
+                              transform: 'translateY(-2px) scale(1.02)'
+                            },
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            position: 'relative',
+                            overflow: 'hidden',
+                            '&::before': {
+                              content: '""',
+                              position: 'absolute',
+                              top: 0,
+                              left: '-100%',
+                              width: '100%',
+                              height: '100%',
+                              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+                              transition: 'left 0.5s'
+                            },
+                            '&:hover::before': {
+                              left: '100%'
+                            }
                           }}
                         >
-                          Add to Cart
+                          Add to Reading List
                         </Button>
                       </CardContent>
                     </Card>
@@ -830,22 +1209,52 @@ const Dashboard = () => {
         maxWidth="md"
         fullWidth
         PaperProps={{
-          sx: { minHeight: '60vh' }
+          sx: { 
+            minHeight: '60vh',
+            borderRadius: 4,
+            background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+            border: '1px solid rgba(59, 130, 246, 0.1)',
+            boxShadow: '0 25px 50px rgba(0, 0, 0, 0.15)',
+            backdropFilter: 'blur(20px)'
+          }
         }}
       >
         <DialogTitle sx={{ 
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center',
-          pb: 1
+          pb: 2,
+          background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%)',
+          borderBottom: '1px solid rgba(59, 130, 246, 0.1)'
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <ShoppingCartIcon sx={{ mr: 1, color: '#3b82f6' }} />
-            <Typography variant="h5" component="h2">
-              Your Cart ({getTotalItems()} items)
+            <Box sx={{
+              p: 1.5,
+              borderRadius: 2,
+              background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+              boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+              mr: 2
+            }}>
+              <ShoppingCartIcon sx={{ color: 'white', fontSize: 24 }} />
+            </Box>
+            <Typography variant="h5" component="h2" sx={{
+              fontWeight: 700,
+              background: 'linear-gradient(135deg, #1e293b 0%, #3b82f6 100%)',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
+            }}>
+              Your Reading List ({getTotalItems()} books)
             </Typography>
           </Box>
-          <IconButton onClick={() => setCartOpen(false)} size="small">
+          <IconButton 
+            onClick={() => setCartOpen(false)} 
+            size="small"
+            sx={{
+              bgcolor: 'rgba(59, 130, 246, 0.1)',
+              '&:hover': { bgcolor: 'rgba(59, 130, 246, 0.2)' }
+            }}
+          >
             <CloseIcon />
           </IconButton>
         </DialogTitle>
@@ -855,10 +1264,10 @@ const Dashboard = () => {
             <Box sx={{ textAlign: 'center', py: 6 }}>
               <ShoppingCartIcon sx={{ fontSize: 64, color: '#d1d5db', mb: 2 }} />
               <Typography variant="h6" color="text.secondary" gutterBottom>
-                Your cart is empty
+                Your reading list is empty
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Add some books to get started!
+                Add some books to your reading list!
               </Typography>
             </Box>
           ) : (
@@ -892,32 +1301,13 @@ const Dashboard = () => {
                         Genre: {item.genre}
                       </Typography>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Button
-                            size="small"
-                            onClick={() => updateQuantity(item._id, item.quantity - 1)}
-                            sx={{ minWidth: 32, height: 32 }}
-                          >
-                            <RemoveIcon fontSize="small" />
-                          </Button>
-                          <Typography variant="body1" sx={{ minWidth: 24, textAlign: 'center' }}>
-                            {item.quantity}
-                          </Typography>
-                          <Button
-                            size="small"
-                            onClick={() => updateQuantity(item._id, item.quantity + 1)}
-                            sx={{ minWidth: 32, height: 32 }}
-                          >
-                            <AddIcon fontSize="small" />
-                          </Button>
-                        </Box>
                         <Button
                           size="small"
                           color="error"
                           onClick={() => removeFromCart(item._id)}
                           startIcon={<DeleteIcon />}
                         >
-                          Remove
+                          Remove from List
                         </Button>
                       </Box>
                     </Box>
@@ -929,26 +1319,29 @@ const Dashboard = () => {
         </DialogContent>
         
         {cart.length > 0 && (
-          <DialogActions sx={{ p: 3, pt: 0 }}>
+          <DialogActions sx={{ p: 3, pt: 0, background: 'rgba(59, 130, 246, 0.02)' }}>
             <Button 
               onClick={() => setCart([])} 
               variant="outlined" 
               color="error"
               startIcon={<DeleteIcon />}
-            >
-              Clear Cart
-            </Button>
-            <Box sx={{ flexGrow: 1 }} />
-            <Button 
-              variant="contained" 
-              size="large"
               sx={{
-                bgcolor: '#3b82f6',
-                '&:hover': { bgcolor: '#2563eb' },
-                px: 4
+                borderRadius: 3,
+                px: 3,
+                py: 1.5,
+                textTransform: 'none',
+                fontWeight: 600,
+                borderColor: '#ef4444',
+                color: '#ef4444',
+                '&:hover': {
+                  borderColor: '#dc2626',
+                  bgcolor: 'rgba(239, 68, 68, 0.1)',
+                  transform: 'translateY(-2px)'
+                },
+                transition: 'all 0.3s ease'
               }}
             >
-              Checkout ({getTotalItems()} items)
+              Clear Reading List
             </Button>
           </DialogActions>
         )}
@@ -973,7 +1366,7 @@ const Dashboard = () => {
               <Grid item xs={12} md={6}>
                 <Box sx={{ textAlign: { xs: 'left', md: 'right' } }}>
                   <Typography variant="body2" sx={{ color: '#94a3b8', mb: 1 }}>
-                    © 2024 Book Library. All rights reserved.
+                    © 2025 Book Library. All rights reserved.
                   </Typography>
                   <Typography variant="body2" sx={{ color: '#64748b' }}>
                     Built with ❤️ for book lovers everywhere
