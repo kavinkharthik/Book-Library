@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Container, 
@@ -53,7 +53,11 @@ const Dashboard = () => {
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [searchQueries, setSearchQueries] = useState({});
   const [filteredBooks, setFilteredBooks] = useState({});
+  const [globalSearchQuery, setGlobalSearchQuery] = useState('');
+  const [globalSearchResults, setGlobalSearchResults] = useState([]);
+  const [searchType, setSearchType] = useState('all'); // 'all', 'year', 'author'
   const navigate = useNavigate();
+  const bookSectionRef = useRef(null);
 
   useEffect(() => {
     console.log('🔍 Dashboard: Getting user data from localStorage...');
@@ -163,6 +167,7 @@ const Dashboard = () => {
     const title = book.title.toLowerCase();
     const author = book.author.toLowerCase();
     const description = book.description.toLowerCase();
+    const publishedYear = book.publishedYear ? book.publishedYear.toString() : '';
     
     let score = 0;
     
@@ -180,6 +185,13 @@ const Dashboard = () => {
       score += 50;
       // Exact author match gets bonus
       if (author === searchTerm) score += 25;
+    }
+    
+    // Published year matches get medium priority
+    if (publishedYear.includes(searchTerm)) {
+      score += 40;
+      // Exact year match gets bonus
+      if (publishedYear === searchTerm) score += 20;
     }
     
     // Description matches get lower priority
@@ -231,6 +243,44 @@ const Dashboard = () => {
     }));
   };
 
+  // Global search functionality
+  const handleGlobalSearch = (query) => {
+    setGlobalSearchQuery(query);
+    
+    if (!query || query.trim() === '') {
+      setGlobalSearchResults([]);
+      return;
+    }
+
+    let results = [];
+
+    if (searchType === 'year') {
+      const searchYear = parseInt(query);
+      if (!isNaN(searchYear)) {
+        results = books.filter(book => book.publishedYear === searchYear);
+      }
+    } else if (searchType === 'author') {
+      results = books.filter(book => 
+        book.author.toLowerCase().includes(query.toLowerCase())
+      );
+    } else {
+      // Search all fields
+      results = books.filter(book => 
+        book.title.toLowerCase().includes(query.toLowerCase()) ||
+        book.author.toLowerCase().includes(query.toLowerCase()) ||
+        book.description.toLowerCase().includes(query.toLowerCase()) ||
+        (book.publishedYear && book.publishedYear.toString().includes(query))
+      );
+    }
+
+    setGlobalSearchResults(results);
+  };
+
+  const clearGlobalSearch = () => {
+    setGlobalSearchQuery('');
+    setGlobalSearchResults([]);
+  };
+
   const getDisplayBooks = (genre) => {
     const query = searchQueries[genre] || '';
     if (query.trim() === '') {
@@ -254,7 +304,8 @@ const Dashboard = () => {
     return booksInGenre.filter(book => 
       book.title.toLowerCase().includes(query.toLowerCase()) ||
       book.author.toLowerCase().includes(query.toLowerCase()) ||
-      book.description.toLowerCase().includes(query.toLowerCase())
+      book.description.toLowerCase().includes(query.toLowerCase()) ||
+      (book.publishedYear && book.publishedYear.toString().includes(query))
     ).length;
   };
 
@@ -318,6 +369,15 @@ const Dashboard = () => {
 
   const getTotalItems = () => {
     return cart.length; // Just count unique books
+  };
+
+  const scrollToBookSection = () => {
+    if (bookSectionRef.current) {
+      bookSectionRef.current.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
   };
 
   if (loading) {
@@ -581,6 +641,7 @@ const Dashboard = () => {
             <Button
               variant="contained"
               size="large"
+              onClick={scrollToBookSection}
               sx={{
                 mb: 6,
                 px: 4,
@@ -683,9 +744,339 @@ const Dashboard = () => {
           </Box>
         </Paper>
 
+        {/* Global Search Section */}
+        <Paper 
+          elevation={0} 
+          sx={{ 
+            p: 4, 
+            mb: 6, 
+            background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+            borderRadius: 4,
+            border: '1px solid rgba(59, 130, 246, 0.1)',
+            backdropFilter: 'blur(10px)'
+          }}
+        >
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            mb: 3,
+            p: 2,
+            borderRadius: 3,
+            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%)',
+            border: '1px solid rgba(59, 130, 246, 0.1)'
+          }}>
+            <Box sx={{
+              p: 1.5,
+              borderRadius: 2,
+              background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+              boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+              mr: 2
+            }}>
+              <SearchIcon sx={{ fontSize: 24, color: 'white' }} />
+            </Box>
+            <Box>
+              <Typography variant="h5" component="h2" sx={{ 
+                fontWeight: 700,
+                color: '#1e293b',
+                letterSpacing: '-0.02em',
+                mb: 0.5
+              }}>
+                Search Books
+              </Typography>
+              <Typography variant="body2" sx={{ 
+                color: '#64748b', 
+                fontSize: '0.95rem'
+              }}>
+                Find books by title, author, publication year, or description
+              </Typography>
+            </Box>
+          </Box>
+
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 3, flexWrap: 'wrap' }}>
+            <TextField
+              fullWidth
+              placeholder={
+                searchType === 'year' ? 'Enter publication year (e.g., 2020)' :
+                searchType === 'author' ? 'Enter author name' :
+                'Search by title, author, year, or description...'
+              }
+              value={globalSearchQuery}
+              onChange={(e) => handleGlobalSearch(e.target.value)}
+              InputProps={{
+                startAdornment: <SearchIcon sx={{ color: '#64748b', mr: 1 }} />,
+                endAdornment: globalSearchQuery && (
+                  <IconButton
+                    size="small"
+                    onClick={clearGlobalSearch}
+                    sx={{ p: 0.5 }}
+                  >
+                    <ClearIcon fontSize="small" />
+                  </IconButton>
+                )
+              }}
+              sx={{
+                minWidth: 300,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 3,
+                  background: 'white',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                }
+              }}
+            />
+            
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              {['all', 'year', 'author'].map((type) => (
+                <Button
+                  key={type}
+                  variant={searchType === type ? 'contained' : 'outlined'}
+                  size="small"
+                  onClick={() => {
+                    setSearchType(type);
+                    if (globalSearchQuery) {
+                      handleGlobalSearch(globalSearchQuery);
+                    }
+                  }}
+                  sx={{
+                    textTransform: 'capitalize',
+                    borderRadius: 2,
+                    px: 2,
+                    py: 1,
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    ...(searchType === type ? {
+                      background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                      boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)'
+                      }
+                    } : {
+                      borderColor: '#3b82f6',
+                      color: '#3b82f6',
+                      '&:hover': {
+                        borderColor: '#2563eb',
+                        bgcolor: 'rgba(59, 130, 246, 0.1)'
+                      }
+                    })
+                  }}
+                >
+                  {type === 'all' ? 'All Fields' : type === 'year' ? 'Year Only' : 'Author Only'}
+                </Button>
+              ))}
+            </Box>
+          </Box>
+
+          {globalSearchQuery && (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              {globalSearchResults.length === 0 
+                ? `No books found matching "${globalSearchQuery}"`
+                : `Found ${globalSearchResults.length} book${globalSearchResults.length === 1 ? '' : 's'} matching "${globalSearchQuery}"`
+              }
+            </Typography>
+          )}
+        </Paper>
+
+        {/* Global Search Results */}
+        {globalSearchQuery && globalSearchResults.length > 0 && (
+          <Paper 
+            elevation={0} 
+            sx={{ 
+              p: 4, 
+              mb: 6, 
+              background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+              borderRadius: 4,
+              border: '1px solid rgba(59, 130, 246, 0.1)',
+              boxShadow: '0 8px 25px rgba(0, 0, 0, 0.1)'
+            }}
+          >
+            <Typography variant="h5" component="h3" gutterBottom sx={{ 
+              fontWeight: 700,
+              color: '#1e293b',
+              mb: 3,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}>
+              <SearchIcon sx={{ color: '#3b82f6' }} />
+              Search Results
+            </Typography>
+            
+            <Grid container spacing={3}>
+              {globalSearchResults.map((book) => {
+                const genreColors = {
+                  'comedy': '#f59e0b',
+                  'horror': '#dc2626',
+                  'romance': '#ec4899',
+                  'sci-fi': '#3b82f6',
+                  'fantasy': '#8b5cf6',
+                  'mystery': '#6b7280',
+                  'biography': '#059669',
+                  'history': '#d97706'
+                };
+                
+                return (
+                  <Grid item xs={12} sm={6} md={4} key={book._id}>
+                    <Card 
+                      sx={{ 
+                        height: '100%',
+                        borderRadius: 3,
+                        border: '1px solid #e2e8f0',
+                        transition: 'all 0.3s ease-in-out',
+                        '&:hover': {
+                          transform: 'translateY(-4px)',
+                          boxShadow: '0 12px 20px -5px rgba(0, 0, 0, 0.1)',
+                          borderColor: genreColors[book.genre] || '#3b82f6',
+                        }
+                      }}
+                    >
+                      <Box sx={{ position: 'relative' }}>
+                        <CardMedia
+                          component="img"
+                          image={book.coverImage}
+                          alt={book.title}
+                          onError={(e) => {
+                            e.target.src = 'https://via.placeholder.com/300x400/4A90E2/FFFFFF?text=Book+Cover';
+                            e.target.onerror = null;
+                          }}
+                          sx={{ 
+                            height: '200px',
+                            width: '100%',
+                            objectFit: 'cover',
+                            backgroundColor: '#f5f5f5'
+                          }}
+                        />
+                        <Chip
+                          label={book.genre}
+                          sx={{
+                            position: 'absolute',
+                            top: 8,
+                            right: 8,
+                            bgcolor: genreColors[book.genre] || '#3b82f6',
+                            color: 'white',
+                            fontWeight: 'medium',
+                            fontSize: '0.7rem',
+                            textTransform: 'capitalize'
+                          }}
+                        />
+                      </Box>
+                      
+                      <CardContent sx={{ p: 2 }}>
+                        <Typography 
+                          variant="h6" 
+                          component="h3" 
+                          sx={{ 
+                            fontWeight: 'bold',
+                            mb: 1,
+                            fontSize: '1rem',
+                            lineHeight: 1.2,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            color: '#1e293b'
+                          }}
+                        >
+                          {book.title}
+                        </Typography>
+                        
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            mb: 1,
+                            fontStyle: 'italic',
+                            fontSize: '0.9rem',
+                            color: '#64748b'
+                          }}
+                        >
+                          by {book.author}
+                        </Typography>
+                        
+                        {book.publishedYear && (
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              mb: 2,
+                              fontSize: '0.8rem',
+                              color: '#3b82f6',
+                              fontWeight: 'medium'
+                            }}
+                          >
+                            Published: {book.publishedYear}
+                          </Typography>
+                        )}
+                        
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            lineHeight: 1.3,
+                            fontSize: '0.8rem',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 3,
+                            WebkitBoxOrient: 'vertical',
+                            color: '#64748b',
+                            mb: 2
+                          }}
+                        >
+                          {book.description}
+                        </Typography>
+
+                        <Button
+                          variant="contained"
+                          startIcon={<AddIcon />}
+                          onClick={() => addToCart(book)}
+                          fullWidth
+                          sx={{
+                            background: `linear-gradient(135deg, ${genreColors[book.genre]} 0%, ${genreColors[book.genre]}dd 100%)`,
+                            borderRadius: 2,
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            py: 1,
+                            fontSize: '0.8rem',
+                            boxShadow: `0 4px 12px ${genreColors[book.genre]}30`,
+                            '&:hover': {
+                              background: `linear-gradient(135deg, ${genreColors[book.genre]}dd 0%, ${genreColors[book.genre]}bb 100%)`,
+                              transform: 'translateY(-1px)'
+                            },
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          Add to Reading List
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                );
+              })}
+            </Grid>
+          </Paper>
+        )}
+
+        {globalSearchQuery && globalSearchResults.length === 0 && (
+          <Paper 
+            elevation={0} 
+            sx={{ 
+              p: 6, 
+              mb: 6, 
+              textAlign: 'center',
+              background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+              borderRadius: 4,
+              border: '1px solid rgba(59, 130, 246, 0.1)'
+            }}
+          >
+            <SearchIcon sx={{ fontSize: 64, color: '#d1d5db', mb: 2 }} />
+            <Typography variant="h6" color="text.secondary" gutterBottom>
+              No Books Found
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              No books were found matching "{globalSearchQuery}". Try a different search term or check the spelling.
+            </Typography>
+          </Paper>
+        )}
 
         {/* Browse Section */}
-        <Box sx={{ mb: 8 }}>
+        <Box ref={bookSectionRef} sx={{ mb: 8 }}>
           <Box sx={{ 
             display: 'flex', 
             alignItems: 'center', 
@@ -1126,6 +1517,23 @@ const Dashboard = () => {
                             >
                               by {highlightText(book.author, searchQueries[selectedGenre])}
                             </Typography>
+                            {book.publishedYear && (
+                              <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                  mb: 1,
+                                  fontSize: '0.75rem',
+                                  color: '#3b82f6',
+                                  fontWeight: 'medium',
+                                  height: '1rem',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                Published: {book.publishedYear}
+                              </Typography>
+                            )}
                           </Box>
                           <Typography 
                             variant="body2" 
@@ -1297,6 +1705,11 @@ const Dashboard = () => {
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                         by {item.author}
                       </Typography>
+                      {item.publishedYear && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                          Published: {item.publishedYear}
+                        </Typography>
+                      )}
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                         Genre: {item.genre}
                       </Typography>

@@ -42,7 +42,10 @@ import {
   MenuBook as MenuBookIcon,
   ArrowBack as ArrowBackIcon,
   Search as SearchIcon,
-  Clear as ClearIcon
+  Clear as ClearIcon,
+  Edit as EditIcon,
+  CheckBox as CheckBoxIcon,
+  CheckBoxOutlineBlank as CheckBoxOutlineBlankIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 
@@ -52,6 +55,7 @@ const AdminPanel = () => {
     author: '',
     genre: '',
     description: '',
+    publishedYear: '',
     coverImage: ''
   });
   const [books, setBooks] = useState([]);
@@ -71,6 +75,23 @@ const AdminPanel = () => {
   const [selectedGenreForAdd, setSelectedGenreForAdd] = useState('');
   const [searchQueries, setSearchQueries] = useState({});
   const [filteredBooks, setFilteredBooks] = useState({});
+  const [editBookDialogOpen, setEditBookDialogOpen] = useState(false);
+  const [editingBook, setEditingBook] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    title: '',
+    author: '',
+    genre: '',
+    description: '',
+    publishedYear: '',
+    coverImage: ''
+  });
+  const [isUpdatingBook, setIsUpdatingBook] = useState(false);
+  const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
+  const [selectedBooks, setSelectedBooks] = useState([]);
+  const [bulkEditData, setBulkEditData] = useState({
+    publishedYear: ''
+  });
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
   const genres = [
     'comedy', 'horror', 'romance', 'sci-fi', 'fantasy', 
@@ -192,8 +213,177 @@ const AdminPanel = () => {
       author: '',
       genre: '',
       description: '',
+      publishedYear: '',
       coverImage: ''
     });
+  };
+
+  const handleEditBook = (book) => {
+    setEditingBook(book);
+    setEditFormData({
+      title: book.title,
+      author: book.author,
+      genre: book.genre,
+      description: book.description,
+      publishedYear: book.publishedYear || '',
+      coverImage: book.coverImage
+    });
+    setEditBookDialogOpen(true);
+  };
+
+  const handleCloseEditBookDialog = () => {
+    setEditBookDialogOpen(false);
+    setEditingBook(null);
+    setEditFormData({
+      title: '',
+      author: '',
+      genre: '',
+      description: '',
+      publishedYear: '',
+      coverImage: ''
+    });
+  };
+
+  const handleEditChange = (e) => {
+    setEditFormData({
+      ...editFormData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const handleUpdateBook = async (e) => {
+    e.preventDefault();
+    setError('');
+    setMessage('');
+    setIsUpdatingBook(true);
+
+    try {
+      console.log('📤 Updating book:', editingBook._id, editFormData);
+      const response = await axios.put(`http://localhost:5000/api/books/${editingBook._id}`, editFormData, {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      console.log('📥 Book update response:', response.data);
+
+      setMessage('Book updated successfully!');
+      setShowSuccessAlert(true);
+      
+      // Optimistic update - update book in UI immediately
+      const updatedBook = response.data.book;
+      setBooks(prevBooks => 
+        prevBooks.map(book => 
+          book._id === updatedBook._id ? updatedBook : book
+        )
+      );
+      
+      // Update genre books if dialog is open
+      if (selectedGenre && genreBooks.length > 0) {
+        setGenreBooks(prevGenreBooks => 
+          prevGenreBooks.map(book => 
+            book._id === updatedBook._id ? updatedBook : book
+          )
+        );
+      }
+      
+      // Close the dialog
+      setEditBookDialogOpen(false);
+      setEditingBook(null);
+      
+      // Refresh books data to ensure UI is up to date
+      setTimeout(() => {
+        fetchBooks();
+        setShowSuccessAlert(false);
+        setMessage('');
+      }, 1000);
+      
+    } catch (error) {
+      setError(error.response?.data?.message || 'Error updating book');
+      setMessage('');
+    } finally {
+      setIsUpdatingBook(false);
+    }
+  };
+
+  const handleBulkEdit = () => {
+    setSelectedBooks([]);
+    setBulkEditData({ publishedYear: '' });
+    setBulkEditDialogOpen(true);
+  };
+
+  const handleCloseBulkEditDialog = () => {
+    setBulkEditDialogOpen(false);
+    setSelectedBooks([]);
+    setBulkEditData({ publishedYear: '' });
+  };
+
+  const handleBulkEditChange = (e) => {
+    setBulkEditData({
+      ...bulkEditData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const handleBulkUpdate = async () => {
+    if (selectedBooks.length === 0) {
+      setError('Please select at least one book to update');
+      return;
+    }
+
+    if (!bulkEditData.publishedYear) {
+      setError('Please enter a published year');
+      return;
+    }
+
+    setError('');
+    setMessage('');
+    setIsBulkUpdating(true);
+
+    try {
+      console.log('📤 Bulk updating books:', selectedBooks, bulkEditData);
+      
+      // Update each selected book
+      const updatePromises = selectedBooks.map(bookId => 
+        axios.put(`http://localhost:5000/api/books/${bookId}`, bulkEditData, {
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+      );
+
+      await Promise.all(updatePromises);
+      
+      setMessage(`Successfully updated ${selectedBooks.length} books with published year ${bulkEditData.publishedYear}!`);
+      setShowSuccessAlert(true);
+      
+      // Close the dialog
+      setBulkEditDialogOpen(false);
+      setSelectedBooks([]);
+      setBulkEditData({ publishedYear: '' });
+      
+      // Refresh books data
+      setTimeout(() => {
+        fetchBooks();
+        setShowSuccessAlert(false);
+        setMessage('');
+      }, 2000);
+      
+    } catch (error) {
+      setError(error.response?.data?.message || 'Error updating books');
+      setMessage('');
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const handleBookSelection = (bookId) => {
+    setSelectedBooks(prev => 
+      prev.includes(bookId) 
+        ? prev.filter(id => id !== bookId)
+        : [...prev, bookId]
+    );
   };
 
   // Search functionality with ranking
@@ -204,6 +394,7 @@ const AdminPanel = () => {
     const title = book.title.toLowerCase();
     const author = book.author.toLowerCase();
     const description = book.description.toLowerCase();
+    const publishedYear = book.publishedYear ? book.publishedYear.toString() : '';
     
     let score = 0;
     
@@ -221,6 +412,13 @@ const AdminPanel = () => {
       score += 50;
       // Exact author match gets bonus
       if (author === searchTerm) score += 25;
+    }
+    
+    // Published year matches get medium priority
+    if (publishedYear.includes(searchTerm)) {
+      score += 40;
+      // Exact year match gets bonus
+      if (publishedYear === searchTerm) score += 20;
     }
     
     // Description matches get lower priority
@@ -295,7 +493,8 @@ const AdminPanel = () => {
     return booksInGenre.filter(book => 
       book.title.toLowerCase().includes(query.toLowerCase()) ||
       book.author.toLowerCase().includes(query.toLowerCase()) ||
-      book.description.toLowerCase().includes(query.toLowerCase())
+      book.description.toLowerCase().includes(query.toLowerCase()) ||
+      (book.publishedYear && book.publishedYear.toString().includes(query))
     ).length;
   };
 
@@ -370,6 +569,7 @@ const AdminPanel = () => {
         author: '',
         genre: selectedGenreForAdd, // Keep the genre selected
         description: '',
+        publishedYear: '',
         coverImage: ''
       });
 
@@ -568,6 +768,22 @@ const AdminPanel = () => {
         </Alert>
       )}
 
+      {isUpdatingBook && (
+        <Alert 
+          severity="info" 
+          sx={{ 
+            mb: 2,
+            fontSize: '1rem',
+            fontWeight: 'medium'
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <CircularProgress size={20} sx={{ mr: 2 }} />
+            Updating book... Please wait
+          </Box>
+        </Alert>
+      )}
+
       {/* Tabs */}
       <Paper elevation={1} sx={{ mb: 3 }}>
         <Tabs 
@@ -635,7 +851,7 @@ const AdminPanel = () => {
                         <TextField
                           fullWidth
                           size="small"
-                          placeholder={`Search ${genre} books...`}
+                          placeholder={`Search ${genre} books by title, author, year, or description...`}
                           value={searchQuery}
                           onChange={(e) => handleSearchChange(genre, e.target.value)}
                           InputProps={{
@@ -1093,7 +1309,7 @@ const AdminPanel = () => {
             <Box sx={{ mb: 3 }}>
               <TextField
                 fullWidth
-                placeholder={`Search books in ${selectedGenre}...`}
+                placeholder={`Search books in ${selectedGenre} by title, author, year, or description...`}
                 value={searchQueries[selectedGenre] || ''}
                 onChange={(e) => handleSearchChange(selectedGenre, e.target.value)}
                 InputProps={{
@@ -1208,6 +1424,27 @@ const AdminPanel = () => {
                             height: '24px'
                           }}
                         />
+                        {bulkEditDialogOpen && (
+                          <IconButton
+                            sx={{
+                              position: 'absolute',
+                              top: 8,
+                              left: 8,
+                              bgcolor: 'rgba(255, 255, 255, 0.9)',
+                              '&:hover': { bgcolor: 'rgba(255, 255, 255, 1)' }
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleBookSelection(book._id);
+                            }}
+                          >
+                            {selectedBooks.includes(book._id) ? (
+                              <CheckBoxIcon sx={{ color: '#3b82f6' }} />
+                            ) : (
+                              <CheckBoxOutlineBlankIcon sx={{ color: '#64748b' }} />
+                            )}
+                          </IconButton>
+                        )}
                       </Box>
                       <CardContent sx={{ 
                         height: '240px',
@@ -1249,7 +1486,7 @@ const AdminPanel = () => {
                             <Typography 
                               variant="body2" 
                               sx={{ 
-                                mb: 1,
+                                mb: 0.5,
                                 fontStyle: 'italic',
                                 fontSize: '0.8rem',
                                 height: '1.2rem',
@@ -1261,6 +1498,19 @@ const AdminPanel = () => {
                             >
                               by {highlightText(book.author, searchQueries[selectedGenre])}
                             </Typography>
+                            {book.publishedYear && (
+                              <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                  mb: 1,
+                                  fontSize: '0.75rem',
+                                  fontWeight: 'medium',
+                                  color: '#9ca3af'
+                                }}
+                              >
+                                {highlightText(book.publishedYear.toString(), searchQueries[selectedGenre])}
+                              </Typography>
+                            )}
                           </Box>
                           <Typography 
                             variant="body2" 
@@ -1279,34 +1529,60 @@ const AdminPanel = () => {
                             {highlightText(book.description, searchQueries[selectedGenre])}
                           </Typography>
                         </Box>
-                        <Button
-                          variant="contained"
-                          color="error"
-                          startIcon={isDeletingBook ? <CircularProgress size={16} sx={{ color: 'white' }} /> : <DeleteIcon />}
-                          onClick={() => handleDelete(book._id)}
-                          disabled={isDeletingBook}
-                          fullWidth
-                          sx={{
-                            borderRadius: 2,
-                            textTransform: 'none',
-                            fontWeight: 'medium',
-                            py: 1,
-                            height: '40px',
-                            fontSize: '0.8rem',
-                            flexShrink: 0,
-                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                            transition: 'all 0.2s ease-in-out',
-                            '&:hover': {
-                              bgcolor: '#dc2626',
-                              filter: 'brightness(0.9)'
-                            },
-                            '&:disabled': {
-                              bgcolor: '#9ca3af'
-                            }
-                          }}
-                        >
-                          {isDeletingBook ? 'Deleting...' : 'Delete Book'}
-                        </Button>
+                        <Stack spacing={1}>
+                          <Button
+                            variant="contained"
+                            color="primary"
+                            startIcon={<EditIcon />}
+                            onClick={() => handleEditBook(book)}
+                            fullWidth
+                            sx={{
+                              borderRadius: 2,
+                              textTransform: 'none',
+                              fontWeight: 'medium',
+                              py: 0.8,
+                              height: '36px',
+                              fontSize: '0.8rem',
+                              flexShrink: 0,
+                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                              transition: 'all 0.2s ease-in-out',
+                              '&:hover': {
+                                bgcolor: '#2563eb',
+                                filter: 'brightness(0.9)'
+                              }
+                            }}
+                          >
+                            Edit Book
+                          </Button>
+                          <Button
+                            variant="contained"
+                            color="error"
+                            startIcon={isDeletingBook ? <CircularProgress size={16} sx={{ color: 'white' }} /> : <DeleteIcon />}
+                            onClick={() => handleDelete(book._id)}
+                            disabled={isDeletingBook}
+                            fullWidth
+                            sx={{
+                              borderRadius: 2,
+                              textTransform: 'none',
+                              fontWeight: 'medium',
+                              py: 0.8,
+                              height: '36px',
+                              fontSize: '0.8rem',
+                              flexShrink: 0,
+                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                              transition: 'all 0.2s ease-in-out',
+                              '&:hover': {
+                                bgcolor: '#dc2626',
+                                filter: 'brightness(0.9)'
+                              },
+                              '&:disabled': {
+                                bgcolor: '#9ca3af'
+                              }
+                            }}
+                          >
+                            {isDeletingBook ? 'Deleting...' : 'Delete Book'}
+                          </Button>
+                        </Stack>
                       </CardContent>
                     </Card>
                   </Grid>
@@ -1327,6 +1603,17 @@ const AdminPanel = () => {
             }}
           >
             Add New Book
+          </Button>
+          <Button 
+            variant="contained"
+            startIcon={<EditIcon />}
+            onClick={handleBulkEdit}
+            sx={{
+              bgcolor: '#10b981',
+              '&:hover': { bgcolor: '#059669' }
+            }}
+          >
+            Bulk Edit
           </Button>
           <Button onClick={handleCloseGenreDialog} variant="outlined">
             Close
@@ -1391,6 +1678,20 @@ const AdminPanel = () => {
             
             <TextField
               fullWidth
+              label="Published Year (Optional)"
+              name="publishedYear"
+              type="number"
+              value={formData.publishedYear}
+              onChange={handleChange}
+              inputProps={{
+                min: 1000,
+                max: new Date().getFullYear() + 1
+              }}
+              margin="normal"
+            />
+            
+            <TextField
+              fullWidth
               label="Cover Image URL (Optional)"
               name="coverImage"
               value={formData.coverImage}
@@ -1421,6 +1722,206 @@ const AdminPanel = () => {
               </Box>
             ) : (
               'Add Book'
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Book Dialog */}
+      <Dialog 
+        open={editBookDialogOpen} 
+        onClose={handleCloseEditBookDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          pb: 1
+        }}>
+          <Typography variant="h5" component="h2">
+            Edit Book
+          </Typography>
+          <IconButton onClick={handleCloseEditBookDialog} size="small">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        
+        <DialogContent sx={{ p: 3 }}>
+          <Box component="form" onSubmit={handleUpdateBook}>
+            <TextField
+              fullWidth
+              label="Title"
+              name="title"
+              value={editFormData.title}
+              onChange={handleEditChange}
+              required
+              margin="normal"
+            />
+            
+            <TextField
+              fullWidth
+              label="Author"
+              name="author"
+              value={editFormData.author}
+              onChange={handleEditChange}
+              required
+              margin="normal"
+            />
+            
+            <TextField
+              fullWidth
+              select
+              label="Genre"
+              name="genre"
+              value={editFormData.genre}
+              onChange={handleEditChange}
+              required
+              margin="normal"
+              SelectProps={{
+                native: true,
+              }}
+            >
+              {genres.map((genre) => (
+                <option key={genre} value={genre}>
+                  {genre.charAt(0).toUpperCase() + genre.slice(1)}
+                </option>
+              ))}
+            </TextField>
+            
+            <TextField
+              fullWidth
+              label="Description"
+              name="description"
+              value={editFormData.description}
+              onChange={handleEditChange}
+              required
+              multiline
+              rows={4}
+              margin="normal"
+            />
+            
+            <TextField
+              fullWidth
+              label="Published Year (Optional)"
+              name="publishedYear"
+              type="number"
+              value={editFormData.publishedYear}
+              onChange={handleEditChange}
+              inputProps={{
+                min: 1000,
+                max: new Date().getFullYear() + 1
+              }}
+              margin="normal"
+            />
+            
+            <TextField
+              fullWidth
+              label="Cover Image URL (Optional)"
+              name="coverImage"
+              value={editFormData.coverImage}
+              onChange={handleEditChange}
+              margin="normal"
+            />
+          </Box>
+        </DialogContent>
+        
+        <DialogActions sx={{ p: 3, pt: 0 }}>
+          <Button onClick={handleCloseEditBookDialog} variant="outlined">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleUpdateBook}
+            variant="contained"
+            disabled={isUpdatingBook}
+            sx={{
+              bgcolor: '#3b82f6',
+              '&:hover': { bgcolor: '#2563eb' },
+              '&:disabled': { bgcolor: '#9ca3af' }
+            }}
+          >
+            {isUpdatingBook ? (
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <CircularProgress size={16} sx={{ mr: 1, color: 'white' }} />
+                Updating...
+              </Box>
+            ) : (
+              'Update Book'
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Edit Dialog */}
+      <Dialog 
+        open={bulkEditDialogOpen} 
+        onClose={handleCloseBulkEditDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          pb: 1
+        }}>
+          <Typography variant="h5" component="h2">
+            Bulk Edit Books
+          </Typography>
+          <IconButton onClick={handleCloseBulkEditDialog} size="small">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        
+        <DialogContent sx={{ p: 3 }}>
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="body1" sx={{ mb: 2 }}>
+              Select books from the list above and set a published year for all selected books.
+            </Typography>
+            
+            <TextField
+              fullWidth
+              label="Published Year"
+              name="publishedYear"
+              type="number"
+              value={bulkEditData.publishedYear}
+              onChange={handleBulkEditChange}
+              required
+              inputProps={{
+                min: 1000,
+                max: new Date().getFullYear() + 1
+              }}
+              margin="normal"
+            />
+            
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+              Selected books: {selectedBooks.length}
+            </Typography>
+          </Box>
+        </DialogContent>
+        
+        <DialogActions sx={{ p: 3, pt: 0 }}>
+          <Button onClick={handleCloseBulkEditDialog} variant="outlined">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleBulkUpdate}
+            variant="contained"
+            disabled={isBulkUpdating || selectedBooks.length === 0}
+            sx={{
+              bgcolor: '#10b981',
+              '&:hover': { bgcolor: '#059669' },
+              '&:disabled': { bgcolor: '#9ca3af' }
+            }}
+          >
+            {isBulkUpdating ? (
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <CircularProgress size={16} sx={{ mr: 1, color: 'white' }} />
+                Updating...
+              </Box>
+            ) : (
+              `Update ${selectedBooks.length} Books`
             )}
           </Button>
         </DialogActions>
