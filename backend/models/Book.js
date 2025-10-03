@@ -20,6 +20,12 @@ const bookSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    publishedYear: {
+        type: Number,
+        required: false,
+        min: 1000,
+        max: new Date().getFullYear() + 1
+    },
     coverImage: {
         type: String,
         default: 'https://via.placeholder.com/300x400?text=Book+Cover'

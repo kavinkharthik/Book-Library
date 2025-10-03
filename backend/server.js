@@ -48,11 +48,23 @@ app.use(passport.session());
 
 // MongoDB Connection
 const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/booklibrary';
-mongoose.connect(mongoUri)
-.then(() => console.log('✅ MongoDB connected successfully'))
+
+// Enhanced MongoDB connection with better error handling
+mongoose.connect(mongoUri, {
+    serverSelectionTimeoutMS: 5000, // Keep trying to send operations for 5 seconds
+    socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
+})
+.then(() => {
+    console.log('✅ MongoDB connected successfully');
+    console.log(`📊 Connected to: ${mongoUri}`);
+})
 .catch(err => {
-    console.error('❌ MongoDB connection error:', err);
+    console.error('❌ MongoDB connection error:', err.message);
     console.log('⚠️  Server will continue without MongoDB connection');
+    console.log('💡 To fix this issue:');
+    console.log('   1. Install MongoDB Community Server locally, OR');
+    console.log('   2. Use MongoDB Atlas (cloud database)');
+    console.log('   3. Set MONGODB_URI environment variable');
 });
 
 // Routes

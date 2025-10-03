@@ -80,7 +80,7 @@ router.post('/', async (req, res) => {
 // Helper function to create book
 async function createBook(req, res, adminId) {
     try {
-        const { title, author, genre, description, coverImage } = req.body;
+        const { title, author, genre, description, publishedYear, coverImage } = req.body;
         
         // Validate required fields
         if (!title || !author || !genre || !description) {
@@ -92,6 +92,7 @@ async function createBook(req, res, adminId) {
             author,
             genre,
             description,
+            publishedYear,
             coverImage: coverImage || 'https://via.placeholder.com/300x400?text=Book+Cover',
             adminId: adminId
         });
